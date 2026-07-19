@@ -2,7 +2,7 @@
 
 Working notes for development. Committed during early development on purpose;
 will be cleaned up (or moved out of the repo) before release. Last updated:
-2026-07-19.
+2026-07-19 (second session).
 
 ## What this is
 
@@ -69,7 +69,7 @@ pipeline, version single-sourced in `include/psfi/psfi.hpp`.
 - `include/psfi/`: config.hpp, impulse_response_field.hpp, moments.hpp
   (clamp_spd), rbf.hpp, kernel_evaluator.hpp; umbrella psfi.hpp with version
   macros (0.1.0).
-- Tests: 23 doctest cases / 292 assertions; 80 pytest tests including a
+- Tests: 28 doctest cases / ~400 assertions; 82 pytest tests including a
   pure-numpy reference of the full prediction pipeline over all 48
   frame×scaling×support×normalization combos, scipy RBFInterpolator
   cross-checks, and an evaluator reference (prediction reference + merge +
@@ -103,6 +103,26 @@ shrink the neighbor radius and it disappears. Diagnostic scripts were
 session-scratch (not committed); the example page explains the effect and
 shows k=1 vs k=10 maps.
 
+## Recent changes (2026-07-19, second session)
+
+- **Far-field short circuits**: support gate tested before any mesh lookup
+  (gated points kept with value 0 even outside the mesh — semantic change vs
+  the paper's exclusion rule, documented in config.hpp); whitened gate is one
+  shared test per entry; evaluator returns 0 without an RBF solve when all
+  predictions are zero. Frog example: 39.5 s -> 21.2 s.
+- **Interpolated inverse-sqrt field W**: whitened_affine and volume_det now
+  interpolate per-vertex Sigma_v^{-1/2} (stored by set_moment_fields as a
+  byproduct of validation) instead of eigendecomposing interpolated Sigma per
+  evaluation; det Sigma(x) := det W(x)^{-2}; eval-time SPD backstop removed.
+- **Dimension generality is now tested**: 1D + 3D closed-form batteries,
+  d = 1..3 RBF checks, numpy reference generalized with d = 1, 3 comparisons.
+- **etree upstream issue found**: SimplexMesh point location misses points
+  exactly on the interior cube-diagonal edge shared by all 6 Freudenthal
+  tets in 3D (returns -1; violates the closed-simplex convention).
+  Vertex-coincident and face-diagonal queries work. Measure-zero for generic
+  queries, so not blocking; fix belongs in etree's intersection tolerance
+  with its own tests.
+
 ## Remaining work (rough order)
 
 1. **API docs**: Doxygen + GitHub Pages, mirroring etree
@@ -123,7 +143,13 @@ shows k=1 vs k=10 maps.
    every (y,x) pair though they depend only on x. A column/batched API
    (fix x, many y) would amortize kNN + target-side work — likely 2–3× for
    the BRLR/H-matrix access pattern. ~10 us/eval today (Release build).
-6. **MPI**: the locate() hook → optional global-domain indicator; halo
+6. **Two-domain generalization** (different source/target meshes,
+   dimensions may differ): API proposal drafted for Nick 2026-07-19 —
+   optional source mesh carrying the moment fields and sample points;
+   mean_translation/whitened/identity generalize, translation requires equal
+   dimensions, symmetric evaluator requires the shared-domain case. Awaiting
+   design discussion before implementation.
+7. **MPI**: the locate() hook → optional global-domain indicator; halo
    documentation; nothing else should need to change.
 
 ## Parked ideas
