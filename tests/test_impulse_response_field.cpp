@@ -524,14 +524,16 @@ TEST_CASE("ImpulseResponseField: support gate and domain exclusion")
         CHECK(P[0].value == 0.0);
     }
 
-    // Transported point outside the mesh: sample excluded entirely.
+    // Gated point outside the mesh: kept with value 0 (the gate is tested
+    // before any mesh lookup — support-model knowledge holds everywhere).
     {
-        const Eigen::Vector2d x(0.40, 0.40), y(1.10, 0.40); // z = (1.05, 0.45)
+        const Eigen::Vector2d x(0.40, 0.40), y(1.10, 0.40); // z = (1.05, 0.45), maha >> tau
         std::vector<Prediction> P = F.predictions(y, x, cfg);
-        CHECK(P.empty());
+        REQUIRE(P.size() == 1);
+        CHECK(P[0].value == 0.0);
     }
 
-    // Gate off: the same far point evaluates the batch function.
+    // Gate off: a far in-mesh point evaluates the batch function...
     {
         cfg.support = Support::none;
         const Eigen::Vector2d x(0.40, 0.40), y(0.90, 0.40);
@@ -539,6 +541,131 @@ TEST_CASE("ImpulseResponseField: support gate and domain exclusion")
         REQUIRE(P.size() == 1);
         const Eigen::Vector2d z = y - x + x1;
         CHECK(P[0].value == doctest::Approx(2.0 * affine(2.0, 3.0, -1.0, z)).epsilon(1e-13));
+    }
+    // ... and with the gate off, an out-of-mesh point excludes the sample.
+    {
+        cfg.support = Support::none;
+        const Eigen::Vector2d x(0.40, 0.40), y(1.10, 0.40);
+        CHECK(F.predictions(y, x, cfg).empty());
+    }
+}
+
+
+TEST_CASE("ImpulseResponseField: ungated out-of-mesh points still exclude the sample")
+{
+    // A sample near the boundary whose ellipsoid sticks out of the domain:
+    // transported points outside the mesh but INSIDE the ellipsoid carry no
+    // observed data and must exclude the sample, not report zero.
+    Eigen::MatrixXd vertices;
+    Eigen::MatrixXi cells;
+    make_grid_mesh(8, vertices, cells);
+    const Eigen::VectorXd psi = affine_vertex_values(1.0, 1.0, 0.0, vertices);
+
+    const Eigen::Vector2d x1(0.95, 0.50);
+    ImpulseResponseField F(vertices, cells);
+    Eigen::MatrixXd pts(2, 1);
+    pts.col(0) = x1;
+    Eigen::VectorXd V(1);
+    V(0) = 1.0;
+    Eigen::MatrixXd mu(2, 1);
+    mu.col(0) = x1;
+    F.add_batch(pts, psi, V, mu, {0.01 * Eigen::MatrixXd::Identity(2, 2)}); // sigma = 0.1
+
+    EvalConfig cfg;
+    cfg.frame         = Frame::translation;
+    cfg.scaling       = Scaling::none;
+    cfg.support       = Support::ellipsoid;
+    cfg.tau           = 3.0;
+    cfg.num_neighbors = 1;
+
+    const Eigen::Vector2d x(0.90, 0.50);
+    // z = y - x + x1 = (1.12, 0.5): outside the mesh, 1.7 sigma from mu_1 -> excluded.
+    CHECK(F.predictions(Eigen::Vector2d(1.07, 0.50), x, cfg).empty());
+    // z = (1.45, 0.5): outside the mesh AND outside the ellipsoid (5 sigma) -> gated zero, kept.
+    std::vector<Prediction> P = F.predictions(Eigen::Vector2d(1.40, 0.50), x, cfg);
+    REQUIRE(P.size() == 1);
+    CHECK(P[0].value == 0.0);
+}
+
+
+TEST_CASE("ImpulseResponseField: whitened_affine uses the interpolated inverse-sqrt field")
+{
+    // The W field is the CG1 interpolation of the vertex Sigma_v^{-1/2} —
+    // NOT the inverse square root of the interpolated Sigma. With a Sigma
+    // field varying in x_0, evaluate at an edge midpoint where the two
+    // definitions differ, against the hand-built W.
+    Eigen::MatrixXd vertices;
+    Eigen::MatrixXi cells;
+    make_grid_mesh(4, vertices, cells);
+    const int nv = static_cast<int>(vertices.cols());
+    const double a = 2.0, b = 3.0, c = -1.0;
+    const Eigen::VectorXd psi = affine_vertex_values(a, b, c, vertices);
+
+    auto sigma00 = []( const Eigen::Vector2d& v ) { return 0.01 * ( 1.0 + v(0) ); };
+    Eigen::VectorXd field_V = Eigen::VectorXd::Ones(nv);
+    Eigen::MatrixXd field_mu = vertices; // mu(x) = x
+    Eigen::MatrixXd field_Sigma(4, nv);
+    for ( int v = 0; v < nv; ++v )
+    {
+        const Eigen::Matrix2d S = Eigen::Vector2d(sigma00(vertices.col(v)), 0.0025).asDiagonal();
+        field_Sigma.col(v) = Eigen::Map<const Eigen::VectorXd>(S.data(), 4);
+    }
+
+    const Eigen::Vector2d x1(0.5, 0.5);
+    const Eigen::Matrix2d Sigma1 = Eigen::Vector2d(0.04, 0.01).asDiagonal();
+    ImpulseResponseField F(vertices, cells, /*batches_normalized=*/false);
+    Eigen::MatrixXd pts(2, 1);
+    pts.col(0) = x1;
+    Eigen::VectorXd V1(1);
+    V1(0) = 1.0;
+    Eigen::MatrixXd mu1(2, 1);
+    mu1.col(0) = x1;
+    F.add_batch(pts, psi, V1, mu1, {Sigma1});
+    F.set_moment_fields(field_V, field_mu, field_Sigma);
+
+    // x at the midpoint of the edge between (0.25, 0.25) and (0.5, 0.25):
+    // W(x) = (W(v_left) + W(v_right)) / 2 with diagonal entries 1/sqrt(s), 20.
+    const Eigen::Vector2d x(0.375, 0.25);
+    const double w00 = 0.5 * ( 1.0 / std::sqrt(0.0125) + 1.0 / std::sqrt(0.015) );
+    const Eigen::Matrix2d W_expected = Eigen::Vector2d(w00, 20.0).asDiagonal();
+
+    const Eigen::Vector2d y(0.42, 0.28);
+    const Eigen::Vector2d wvec = W_expected * ( y - x ); // mu(x) = x
+    const Eigen::Vector2d z = x1 + Eigen::Vector2d(0.2 * wvec(0), 0.1 * wvec(1));
+
+    EvalConfig cfg;
+    cfg.frame         = Frame::whitened_affine;
+    cfg.scaling       = Scaling::none;
+    cfg.support       = Support::none;
+    cfg.num_neighbors = 1;
+    {
+        std::vector<Prediction> P = F.predictions(y, x, cfg);
+        REQUIRE(P.size() == 1);
+        CHECK(P[0].value == doctest::Approx(affine(a, b, c, z)).epsilon(1e-12));
+        // ... and it differs from the old inverse-sqrt-of-interpolated-Sigma value.
+        const double w00_old = 1.0 / std::sqrt(0.5 * ( 0.0125 + 0.015 ));
+        CHECK(std::abs(w00 - w00_old) > 1e-4);
+    }
+
+    // volume_det consistency: det Sigma(x) := det(W(x))^{-2}.
+    cfg.scaling = Scaling::volume_det;
+    {
+        std::vector<Prediction> P = F.predictions(y, x, cfg);
+        REQUIRE(P.size() == 1);
+        const double s = std::sqrt(Sigma1.determinant()) * W_expected.determinant();
+        CHECK(P[0].value == doctest::Approx(s * affine(a, b, c, z)).epsilon(1e-12));
+    }
+
+    // The whitened gate is shared by all neighbors: y beyond tau standard
+    // deviations of x's own ellipsoid gates everything to zero.
+    cfg.scaling = Scaling::none;
+    cfg.support = Support::ellipsoid;
+    cfg.tau     = 3.0;
+    {
+        const Eigen::Vector2d y_far = x + Eigen::Vector2d(0.0, 0.2); // |W (y-x)| = 4 > tau
+        std::vector<Prediction> P = F.predictions(y_far, x, cfg);
+        REQUIRE(P.size() == 1);
+        CHECK(P[0].value == 0.0);
     }
 }
 

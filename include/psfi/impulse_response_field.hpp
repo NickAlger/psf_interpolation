@@ -133,6 +133,8 @@ public:
     const Eigen::VectorXd& field_V() const                      { return field_V_; }
     const Eigen::MatrixXd& field_mu() const                     { return field_mu_; }
     const Eigen::MatrixXd& field_Sigma() const                  { return field_Sigma_; }
+    /// Derived inverse-square-root field (column v = vec(Sigma_v^{-1/2})).
+    const Eigen::MatrixXd& field_W() const                      { return field_W_; }
 
     /// Sets the vertex moment fields used to evaluate V(x), mu(x), Sigma(x)
     /// at target points. Pass size-zero arrays for fields you do not have
@@ -170,8 +172,13 @@ public:
         }
 
         // Symmetrize and validate the covariance field before assigning
-        // anything, so a throw leaves the fields unchanged.
+        // anything, so a throw leaves the fields unchanged. The validation
+        // eigendecompositions are kept as the inverse-square-root field W
+        // (column v = vec(Sigma_v^{-1/2})): whitened_affine and volume_det
+        // interpolate W directly, which is exact at the vertices, SPD
+        // everywhere by convexity, and avoids per-evaluation eigensolves.
         Eigen::MatrixXd Sigma_sym = Sigma;
+        Eigen::MatrixXd W_field(Sigma.rows(), Sigma.cols());
         if ( Sigma.cols() > 0 )
         {
             std::vector<std::pair<int, double>> bad; // (vertex, min eigenvalue)
@@ -184,6 +191,11 @@ public:
                 if ( es.info() != Eigen::Success || es.eigenvalues().minCoeff() <= 0.0 )
                 {
                     bad.emplace_back(v, es.eigenvalues().minCoeff());
+                }
+                else
+                {
+                    const Eigen::MatrixXd W = es.operatorInverseSqrt();
+                    W_field.col(v) = Eigen::Map<const Eigen::VectorXd>(W.data(), dim_ * dim_);
                 }
             }
             if ( !bad.empty() )
@@ -207,6 +219,7 @@ public:
         field_V_     = V;
         field_mu_    = mu;
         field_Sigma_ = std::move(Sigma_sym);
+        field_W_     = std::move(W_field);
     }
 
     /// Adds one impulse response batch: sample points (columns of `points`,
@@ -415,15 +428,13 @@ public:
     /// Per-neighbor kernel predictions at the target pair (y, x), both
     /// arbitrary coordinates: for each of the (up to) num_neighbors sample
     /// points x_i nearest to x, the pair (x_i, f_i) with
-    /// f_i = s_i * phi_i(T_i(y)) per the configuration. Samples whose
-    /// transported point T_i(y) falls outside the mesh are excluded; gated
-    /// samples (T_i(y) inside the mesh but outside E_i) contribute f_i = 0.
-    /// Returns no predictions when x lies outside the mesh but the
+    /// f_i = s_i * phi_i(T_i(y)) per the configuration. The support gate is
+    /// tested before any mesh lookup: gated samples contribute f_i = 0 at
+    /// negligible cost wherever T_i(y) lies (the far-field short circuit),
+    /// while ungated samples whose T_i(y) falls outside the mesh are
+    /// excluded. Returns no predictions when x lies outside the mesh but the
     /// configuration needs moment fields at x: the kernel is uninformed
-    /// there and evaluates to zero. (A rounding-scale backstop also returns
-    /// empty if the interpolated Sigma(x) fails to be SPD, which validated
-    /// fields cannot trigger except at machine precision.) Thread-safe
-    /// (const; no caches).
+    /// there and evaluates to zero. Thread-safe (const; no caches).
     std::vector<Prediction> predictions( const Eigen::Ref<const Eigen::VectorXd>& y,
                                          const Eigen::Ref<const Eigen::VectorXd>& x,
                                          const EvalConfig& config ) const
@@ -445,18 +456,18 @@ public:
         }
 
         // Target-side quantities (CG1 interpolation of the vertex fields at x).
-        const bool need_mu_x    = ( config.frame == Frame::mean_translation
-                                    || config.frame == Frame::whitened_affine );
-        const bool need_Sigma_x = ( config.frame == Frame::whitened_affine
-                                    || config.scaling == Scaling::volume_det );
-        const bool need_V_x     = ( config.scaling == Scaling::volume
-                                    || config.scaling == Scaling::volume_det );
+        const bool need_mu_x = ( config.frame == Frame::mean_translation
+                                 || config.frame == Frame::whitened_affine );
+        const bool need_W_x  = ( config.frame == Frame::whitened_affine
+                                 || config.scaling == Scaling::volume_det );
+        const bool need_V_x  = ( config.scaling == Scaling::volume
+                                 || config.scaling == Scaling::volume_det );
 
         double          V_x = 0.0;
         double          det_Sigma_x = 0.0;
         Eigen::VectorXd mu_x;
-        Eigen::MatrixXd W_x; // Sigma(x)^{-1/2}
-        if ( need_mu_x || need_Sigma_x || need_V_x )
+        Eigen::MatrixXd W_x; // interpolated inverse-square-root field (SPD by convexity)
+        if ( need_mu_x || need_W_x || need_V_x )
         {
             int cell;
             Eigen::VectorXd alpha;
@@ -480,30 +491,31 @@ public:
                     mu_x += alpha(kk) * field_mu_.col(mesh_.cells()(kk, cell));
                 }
             }
-            if ( need_Sigma_x )
+            if ( need_W_x )
             {
-                // Columns of field_Sigma_ are symmetric (enforced by
-                // set_moment_fields), so the barycentric combination is
-                // symmetric and SPD (lambda_min concavity); the guard below
-                // is a rounding backstop only.
-                Eigen::MatrixXd Sigma_x = Eigen::MatrixXd::Zero(dim_, dim_);
+                W_x = Eigen::MatrixXd::Zero(dim_, dim_);
                 for ( int kk = 0; kk < dim_ + 1; ++kk )
                 {
-                    Sigma_x += alpha(kk)
+                    W_x += alpha(kk)
                         * Eigen::Map<const Eigen::MatrixXd>(
-                              field_Sigma_.col(mesh_.cells()(kk, cell)).data(), dim_, dim_);
+                              field_W_.col(mesh_.cells()(kk, cell)).data(), dim_, dim_);
                 }
-                Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> es(Sigma_x);
-                if ( es.info() != Eigen::Success || es.eigenvalues().minCoeff() <= 0.0 )
-                {
-                    return {}; // cannot fire for validated fields, except at rounding scale
-                }
-                det_Sigma_x = es.eigenvalues().prod();
-                if ( config.frame == Frame::whitened_affine )
-                {
-                    W_x = es.operatorInverseSqrt();
-                }
+                // det Sigma(x) := det(W(x))^{-2}, consistent with the W-field
+                // definition of the frame map (W is SPD, so det W > 0).
+                const double det_W = W_x.determinant();
+                det_Sigma_x = 1.0 / ( det_W * det_W );
             }
+        }
+
+        // For whitened_affine the whitened offset is shared by all neighbors,
+        // and |W(x)(y - mu(x))| is every neighbor's Mahalanobis distance:
+        // one test gates the entire neighbor set.
+        Eigen::VectorXd wvec;
+        bool shared_gate_inside = true;
+        if ( config.frame == Frame::whitened_affine )
+        {
+            wvec = W_x * ( y - mu_x );
+            shared_gate_inside = ( wvec.squaredNorm() <= config.tau * config.tau );
         }
 
         // k nearest sample points to x.
@@ -525,52 +537,55 @@ public:
                 case Frame::identity:         z = y;                          break;
                 case Frame::translation:      z = y - x + xi;                 break;
                 case Frame::mean_translation: z = y - mu_x + sample_mu_[ii];  break;
-                case Frame::whitened_affine:
-                    z = sample_mu_[ii] + sample_Sigma_sqrt_[ii] * ( W_x * ( y - mu_x ) );
-                    break;
+                case Frame::whitened_affine:  z = sample_mu_[ii] + sample_Sigma_sqrt_[ii] * wvec; break;
+            }
+
+            // Support gate first — the far-field short circuit: gated
+            // predictions are pushed with value 0 without any mesh lookup.
+            if ( config.support == Support::ellipsoid )
+            {
+                bool inside = shared_gate_inside;
+                if ( config.frame != Frame::whitened_affine )
+                {
+                    const Eigen::VectorXd dz = z - sample_mu_[ii];
+                    inside = ( dz.dot(sample_Sigma_inv_[ii] * dz) <= config.tau * config.tau );
+                }
+                if ( !inside )
+                {
+                    out.push_back(Prediction{ii, xi, 0.0});
+                    continue;
+                }
             }
 
             int cell;
             Eigen::VectorXd alpha;
             if ( !locate(z, cell, alpha) )
             {
-                continue; // transported point outside the domain: sample excluded
+                continue; // ungated point outside the domain: sample excluded
             }
 
-            bool inside_support = true;
-            if ( config.support == Support::ellipsoid )
+            const Eigen::VectorXd& psi = batch_values_[point2batch_[ii]];
+            double raw = 0.0;
+            for ( int kk = 0; kk < dim_ + 1; ++kk )
             {
-                const Eigen::VectorXd dz = z - sample_mu_[ii];
-                inside_support = ( dz.dot(sample_Sigma_inv_[ii] * dz) <= config.tau * config.tau );
+                raw += alpha(kk) * psi(mesh_.cells()(kk, cell));
             }
 
-            double f = 0.0;
-            if ( inside_support )
+            double s = 1.0;
+            switch ( config.scaling )
             {
-                const Eigen::VectorXd& psi = batch_values_[point2batch_[ii]];
-                double raw = 0.0;
-                for ( int kk = 0; kk < dim_ + 1; ++kk )
-                {
-                    raw += alpha(kk) * psi(mesh_.cells()(kk, cell));
-                }
-
-                double s = 1.0;
-                switch ( config.scaling )
-                {
-                    case Scaling::none:
-                        s = batches_normalized_ ? sample_V_[ii] : 1.0;
-                        break;
-                    case Scaling::volume:
-                        s = batches_normalized_ ? V_x : V_x / sample_V_[ii];
-                        break;
-                    case Scaling::volume_det:
-                        s = ( batches_normalized_ ? V_x : V_x / sample_V_[ii] )
-                            * std::sqrt(sample_Sigma_det_[ii] / det_Sigma_x);
-                        break;
-                }
-                f = s * raw;
+                case Scaling::none:
+                    s = batches_normalized_ ? sample_V_[ii] : 1.0;
+                    break;
+                case Scaling::volume:
+                    s = batches_normalized_ ? V_x : V_x / sample_V_[ii];
+                    break;
+                case Scaling::volume_det:
+                    s = ( batches_normalized_ ? V_x : V_x / sample_V_[ii] )
+                        * std::sqrt(sample_Sigma_det_[ii] / det_Sigma_x);
+                    break;
             }
-            out.push_back(Prediction{ii, xi, f});
+            out.push_back(Prediction{ii, xi, s * raw});
         }
         return out;
     }
@@ -589,13 +604,6 @@ private:
         }
         alpha = mesh_.cell_tree().affine_coordinates(cell, p);
         return true;
-    }
-
-    bool in_domain( const Eigen::Ref<const Eigen::VectorXd>& p ) const
-    {
-        int cell;
-        Eigen::VectorXd alpha;
-        return locate(p, cell, alpha);
     }
 
     int                dim_ = 0;
@@ -622,6 +630,7 @@ private:
     Eigen::VectorXd field_V_;     // (num_vertices) or empty
     Eigen::MatrixXd field_mu_;    // (dim, num_vertices) or empty
     Eigen::MatrixXd field_Sigma_; // (dim*dim, num_vertices), column v = vec(Sigma_v), or empty
+    Eigen::MatrixXd field_W_;     // derived: column v = vec(Sigma_v^{-1/2}), or empty
 
     etree::KDTree kdtree_; // over the sample points
     bool          kdtree_dirty_ = false;

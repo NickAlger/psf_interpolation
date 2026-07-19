@@ -30,7 +30,12 @@ enum class Frame
     identity,         ///< T_i(y) = y — no transport (paper eq. 4.7)
     translation,      ///< T_i(y) = y - x + x_i (4.8, local translation invariance)
     mean_translation, ///< T_i(y) = y - mu(x) + mu_i (4.9/4.10, local mean displacement invariance)
-    whitened_affine,  ///< T_i(y) = mu_i + Sigma_i^{1/2} Sigma(x)^{-1/2} (y - mu(x)) — maps the ellipsoid at x onto the ellipsoid at x_i (symmetric PSD square roots)
+    /// T_i(y) = mu_i + Sigma_i^{1/2} W(x) (y - mu(x)) — maps the ellipsoid at
+    /// x onto the ellipsoid at x_i (symmetric PSD square roots). W is the
+    /// inverse-square-root field: the CG1 interpolation of the per-vertex
+    /// Sigma_v^{-1/2}, which equals Sigma(x)^{-1/2} at the vertices, is SPD
+    /// everywhere by convexity, and needs no per-evaluation eigensolve.
+    whitened_affine,
 };
 
 /// Scalar correction s_i applied to the transported impulse response value.
@@ -47,10 +52,19 @@ enum class Scaling
 /// The gate isolates individual impulse responses within a multi-impulse
 /// batch; with single-impulse batches it may be turned off (and then no
 /// per-sample ellipsoid data is needed at all).
+///
+/// The gate is also the far-field short circuit: it is tested BEFORE any
+/// mesh lookup (a few flops with the precomputed Sigma_i^{-1}; for
+/// whitened_affine one shared test covers all neighbors), so gated
+/// predictions cost almost nothing and a gated point is kept with value 0
+/// even when it lies outside the mesh — "phi is zero beyond tau standard
+/// deviations" is knowledge from the support model, valid regardless of
+/// domain membership. Ungated points outside the mesh still exclude the
+/// sample (the impulse response was never observed there).
 enum class Support
 {
-    none,      ///< no gate: the batch function is evaluated wherever T_i(y) lands
-    ellipsoid, ///< f_i = 0 when T_i(y) is outside E_i (T_i(y) outside the mesh always excludes the sample)
+    none,      ///< no gate: the batch function is evaluated wherever T_i(y) lands (outside the mesh excludes the sample)
+    ellipsoid, ///< f_i = 0 when T_i(y) is outside E_i, tested before (and instead of) any mesh lookup
 };
 
 /// Configuration for evaluating kernel predictions from an ImpulseResponseField.

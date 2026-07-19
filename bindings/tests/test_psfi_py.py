@@ -50,6 +50,11 @@ def sym_sqrt(S):
     return Q @ np.diag(np.sqrt(lam)) @ Q.T
 
 
+def sym_inv_sqrt(S):
+    lam, Q = np.linalg.eigh(S)
+    return Q @ np.diag(1.0 / np.sqrt(lam)) @ Q.T
+
+
 def reference_predictions(data, y, x, cfg):
     """Reference for ImpulseResponseField.predictions; data is a plain dict."""
     Frame, Scaling, Support = psfi.Frame, psfi.Scaling, psfi.Support
@@ -72,13 +77,18 @@ def reference_predictions(data, y, x, cfg):
         if need_mu_x:
             mu_x = alpha @ data["field_mu"][vids]
         if need_Sig_x:
-            Sig_x = np.einsum("k,kij->ij", alpha, data["field_Sigma"][vids])
-            Sig_x = 0.5 * (Sig_x + Sig_x.T)
-            lam, Q = np.linalg.eigh(Sig_x)
-            if lam.min() <= 0.0:
-                return np.array([], int), np.zeros((0, 2)), np.array([])
-            det_Sig_x = np.prod(lam)
-            W_x = Q @ np.diag(1.0 / np.sqrt(lam)) @ Q.T
+            # The W field: CG1 interpolation of the vertex inverse square
+            # roots (exact at vertices, SPD by convexity); det Sigma(x) is
+            # defined through it.
+            W_vert = np.stack([sym_inv_sqrt(data["field_Sigma"][v]) for v in vids])
+            W_x = np.einsum("k,kij->ij", alpha, W_vert)
+            det_Sig_x = np.linalg.det(W_x) ** -2.0
+
+    # For whitened_affine the whitened offset (and hence the gate) is shared
+    # by every neighbor.
+    if cfg.frame == Frame.whitened_affine:
+        wvec = W_x @ (y - mu_x)
+        shared_inside = wvec @ wvec <= cfg.tau**2
 
     d2 = np.sum((data["sample_points"] - x) ** 2, axis=1)
     order = np.argsort(d2, kind="stable")[: min(cfg.num_neighbors, m)]
@@ -93,33 +103,39 @@ def reference_predictions(data, y, x, cfg):
         elif cfg.frame == Frame.mean_translation:
             z = y - mu_x + data["sample_mu"][i]
         else:
-            z = data["sample_mu"][i] + sym_sqrt(data["sample_Sigma"][i]) @ (W_x @ (y - mu_x))
+            z = data["sample_mu"][i] + sym_sqrt(data["sample_Sigma"][i]) @ wvec
+
+        # Support gate first (far-field short circuit): gated points are kept
+        # with value 0 without a mesh lookup, even outside the mesh.
+        if cfg.support == Support.ellipsoid:
+            if cfg.frame == Frame.whitened_affine:
+                inside = shared_inside
+            else:
+                dz = z - data["sample_mu"][i]
+                inside = dz @ np.linalg.solve(data["sample_Sigma"][i], dz) <= cfg.tau**2
+            if not inside:
+                idx.append(i)
+                pts.append(xi)
+                vals.append(0.0)
+                continue
 
         c, alpha = locate(data["vertices"], data["cells"], z)
         if c < 0:
-            continue  # transported point outside the domain: sample excluded
+            continue  # ungated point outside the domain: sample excluded
 
-        inside = True
-        if cfg.support == Support.ellipsoid:
-            dz = z - data["sample_mu"][i]
-            inside = dz @ np.linalg.solve(data["sample_Sigma"][i], dz) <= cfg.tau**2
-
-        f = 0.0
-        if inside:
-            psi = data["batch_psi"][data["point2batch"][i]]
-            raw = alpha @ psi[data["cells"][c]]
-            normalized = data["batches_normalized"]
-            if cfg.scaling == Scaling.none:
-                s = data["sample_V"][i] if normalized else 1.0
-            elif cfg.scaling == Scaling.volume:
-                s = V_x if normalized else V_x / data["sample_V"][i]
-            else:
-                det_i = np.linalg.det(data["sample_Sigma"][i])
-                s = (V_x if normalized else V_x / data["sample_V"][i]) * np.sqrt(det_i / det_Sig_x)
-            f = s * raw
+        psi = data["batch_psi"][data["point2batch"][i]]
+        raw = alpha @ psi[data["cells"][c]]
+        normalized = data["batches_normalized"]
+        if cfg.scaling == Scaling.none:
+            s = data["sample_V"][i] if normalized else 1.0
+        elif cfg.scaling == Scaling.volume:
+            s = V_x if normalized else V_x / data["sample_V"][i]
+        else:
+            det_i = np.linalg.det(data["sample_Sigma"][i])
+            s = (V_x if normalized else V_x / data["sample_V"][i]) * np.sqrt(det_i / det_Sig_x)
         idx.append(i)
         pts.append(xi)
-        vals.append(f)
+        vals.append(s * raw)
     return np.array(idx, int), np.array(pts).reshape(len(idx), 2), np.array(vals)
 
 

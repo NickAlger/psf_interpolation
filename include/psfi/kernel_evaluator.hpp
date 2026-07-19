@@ -131,6 +131,23 @@ public:
         {
             return 0.0;
         }
+        // Far-field short circuit: when every prediction is gated to zero the
+        // interpolant is identically zero (also under smoothing) — skip the
+        // RBF solve entirely. This is the dominant case for off-diagonal
+        // blocks in compressed-matrix assembly.
+        bool all_zero = true;
+        for ( double v : values )
+        {
+            if ( v != 0.0 )
+            {
+                all_zero = false;
+                break;
+            }
+        }
+        if ( all_zero )
+        {
+            return 0.0;
+        }
         Eigen::MatrixXd C(dim(), k);
         Eigen::VectorXd f(k);
         for ( int jj = 0; jj < k; ++jj )

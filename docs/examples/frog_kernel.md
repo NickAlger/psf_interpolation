@@ -441,7 +441,7 @@ tau = 3.0, k = 10 neighbors, gaussian RBF with C_RBF = 3.0
 
 batch  1:  8 impulse responses
   mean_translation+volume    k= 1  batches= 1  median rel col err 0.433, p90 0.586
-  mean_translation+volume    k=10  batches= 1  median rel col err 0.384, p90 0.532
+  mean_translation+volume    k=10  batches= 1  median rel col err 0.367, p90 0.510
   whitened_affine+volume_det  k= 1  batches= 1  median rel col err 0.393, p90 0.606
   whitened_affine+volume_det  k=10  batches= 1  median rel col err 0.267, p90 0.476
 batch  2:  5 impulse responses
@@ -449,7 +449,7 @@ batch  3:  7 impulse responses
 batch  4:  6 impulse responses
 batch  5:  5 impulse responses
   mean_translation+volume    k= 1  batches= 5  median rel col err 0.216, p90 0.459
-  mean_translation+volume    k=10  batches= 5  median rel col err 0.114, p90 0.205
+  mean_translation+volume    k=10  batches= 5  median rel col err 0.110, p90 0.195
   whitened_affine+volume_det  k= 1  batches= 5  median rel col err 0.150, p90 0.478
   whitened_affine+volume_det  k=10  batches= 5  median rel col err 0.061, p90 0.103
 batch  6:  6 impulse responses
@@ -458,7 +458,7 @@ batch  8:  6 impulse responses
 batch  9:  6 impulse responses
 batch 10:  6 impulse responses
   mean_translation+volume    k= 1  batches=10  median rel col err 0.147, p90 0.359
-  mean_translation+volume    k=10  batches=10  median rel col err 0.046, p90 0.096
+  mean_translation+volume    k=10  batches=10  median rel col err 0.046, p90 0.095
   whitened_affine+volume_det  k= 1  batches=10  median rel col err 0.109, p90 0.413
   whitened_affine+volume_det  k=10  batches=10  median rel col err 0.036, p90 0.055
 
