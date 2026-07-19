@@ -45,6 +45,10 @@
 /// issue. The domain-membership test is isolated in locate() so that a
 /// separate global-domain indicator can plug in without touching the
 /// evaluation logic.
+///
+/// Values are scalar today; a vector/tensor-valued extension is planned and
+/// verified additive — see dev/VECTOR_TENSOR_EXTENSION.md, including the
+/// geometry/value-separation invariant that keeps it cheap.
 
 #include <cmath>
 #include <optional>

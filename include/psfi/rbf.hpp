@@ -20,6 +20,10 @@
 /// the interpolant reproduces its data at the centers; smoothing > 0 trades
 /// that exactness for robustness to noise (there is deliberately no special
 /// case snapping evaluation points onto centers).
+///
+/// `values` carries one scalar per center today; a multi-right-hand-side
+/// overload (one factorization, many value columns) is the planned
+/// vector-field extension — see dev/VECTOR_TENSOR_EXTENSION.md.
 
 #include <cmath>
 #include <stdexcept>

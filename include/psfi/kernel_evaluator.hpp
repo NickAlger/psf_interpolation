@@ -20,6 +20,9 @@
 /// smoothing = 0 the RBF interpolant reproduces its centers, so
 /// Phi(y, x_i) is exact at sample points automatically, and with
 /// smoothing > 0 that exactness is deliberately traded for noise robustness.
+///
+/// Entries are scalar today; the planned vector/tensor extension adds
+/// vector-valued entry methods additively — see dev/VECTOR_TENSOR_EXTENSION.md.
 
 #include <memory>
 #include <stdexcept>

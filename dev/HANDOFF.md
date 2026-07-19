@@ -169,6 +169,14 @@ shows k=1 vs k=10 maps.
   principled default schedule + a study on the frog example.
 - **Adaptive k**: k=10 out of ~30 samples reaches ~0.4 away (Δtheta ~ 40°);
   scale k with sample count or drop neighbors much farther than the nearest.
+- **Vector/tensor-valued kernels** — full parked design in
+  [`dev/VECTOR_TENSOR_EXTENSION.md`](VECTOR_TENSOR_EXTENSION.md): matrix
+  kernels, componentwise target with shared moments (one RBF factorization,
+  q right-hand sides), source components as labeled samples (restriction,
+  not interpolation; mixed-component Dirac combs), equivariant component
+  frames as the whitened_affine analogue, signed cross-block moment risk.
+  Additive-extension audit done: no hooks needed; hold the geometry/value
+  separation invariant.
 - **Symmetric-merge tolerance**: `duplicate_tol` is absolute (1e-7),
   inherited from the paper code; a scale-relative tolerance may be better.
 
