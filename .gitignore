@@ -75,5 +75,3 @@ dist/
 .pytest_cache/
 .venv/
 
-# Maintainer-local scratch
-dev/
