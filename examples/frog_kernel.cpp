@@ -23,10 +23,21 @@
 // (cf. Figure 6 of the paper), for the paper's configuration
 // (mean_translation + volume) and for whitened_affine + volume_det, which
 // additionally deforms each impulse to the local ellipsoid shape — on this
-// rotating kernel that pays off, as the printed error quantiles show.
-// Denominators are floored at 1% of the largest column norm so the
+// rotating kernel that pays off, as the printed error quantiles show. Each
+// error map is shown with k = 10 neighbors and with k = 1 (nearest impulse
+// only). Denominators are floored at 1% of the largest column norm so the
 // vanishing-V boundary ring reads as zero rather than 0/0; errors are
 // clipped at 1 for plotting (shared color scale 0..1).
+//
+// The 5-batch k = 10 maps show a localized hot spot near (0.2, 0.75). This
+// is an interference effect of the sparse-sampling regime, not a coverage
+// hole: with ~30 samples the 10 nearest neighbors include impulses
+// misrotated by up to ~45 degrees, each individually 20-60% wrong, and the
+// interpolant — a signed linear combination of their predictions — usually
+// cancels those individual errors (which is why k = 10 beats k = 1 almost
+// everywhere) but happens to add them constructively in that region, as the
+// clean k = 1 maps there confirm. More batches shrink the neighbor radius
+// and the effect disappears by 10 batches.
 
 #include <algorithm>
 #include <cmath>
@@ -296,36 +307,42 @@ int main()
             }
         }
 
-        // Column-error maps (cf. paper Figure 6), both configurations.
+        // Column-error maps (cf. paper Figure 6), both configurations, with
+        // the full k = 10 neighbor pooling and with k = 1 (nearest impulse only).
         for ( size_t qq = 0; qq < configs.size(); ++qq )
         {
-            KernelEvaluator K(F, nullptr, configs[qq].second, rbf);
-            const Eigen::MatrixXd B = K.block(vertices, vertices);
-            Eigen::VectorXd err(nv);
-            std::vector<double> informative_errs;
-            for ( int jj = 0; jj < nv; ++jj )
+            for ( int num_neighbors : {1, 10} )
             {
-                const double e = ( B.col(jj) - T.col(jj) ).norm()
-                    / std::max(T_col_norms(jj), norm_floor);
-                err(jj) = std::min(e, 1.0);
-                if ( T_col_norms(jj) >= norm_floor )
+                EvalConfig cfg_k = configs[qq].second;
+                cfg_k.num_neighbors = num_neighbors;
+                KernelEvaluator K(F, nullptr, cfg_k, rbf);
+                const Eigen::MatrixXd B = K.block(vertices, vertices);
+                Eigen::VectorXd err(nv);
+                std::vector<double> informative_errs;
+                for ( int jj = 0; jj < nv; ++jj )
                 {
-                    informative_errs.push_back(e);
+                    const double e = ( B.col(jj) - T.col(jj) ).norm()
+                        / std::max(T_col_norms(jj), norm_floor);
+                    err(jj) = std::min(e, 1.0);
+                    if ( T_col_norms(jj) >= norm_floor )
+                    {
+                        informative_errs.push_back(e);
+                    }
                 }
-            }
-            std::printf("  %s  batches=%2d  median rel col err %.3f, p90 %.3f\n",
-                        configs[qq].first, stage,
-                        percentile(informative_errs, 0.5), percentile(informative_errs, 0.9));
+                std::printf("  %s  k=%2d  batches=%2d  median rel col err %.3f, p90 %.3f\n",
+                            configs[qq].first, num_neighbors, stage,
+                            percentile(informative_errs, 0.5), percentile(informative_errs, 0.9));
 
-            Plot2D fig;
-            FieldOptions opts;
-            opts.vmin = 0.0;
-            opts.vmax = 1.0;
-            draw_cg1_field(fig, F->mesh(), err, opts);
-            char path[64];
-            std::snprintf(path, sizeof(path), "%2zu_error_%s_batches%02d.png",
-                          13 + qq, ( qq == 0 ? "paper" : "whitened" ), stage);
-            fig.save_png(path, 560);
+                Plot2D fig;
+                FieldOptions opts;
+                opts.vmin = 0.0;
+                opts.vmax = 1.0;
+                draw_cg1_field(fig, F->mesh(), err, opts);
+                char path[64];
+                std::snprintf(path, sizeof(path), "%2zu_error_%s_batches%02d_k%02d.png",
+                              13 + qq, ( qq == 0 ? "paper" : "whitened" ), stage, num_neighbors);
+                fig.save_png(path, 560);
+            }
         }
     }
 

@@ -23,10 +23,21 @@ and 5 batches; and maps of the relative column error
 (cf. Figure 6 of the paper), for the paper's configuration
 (mean_translation + volume) and for whitened_affine + volume_det, which
 additionally deforms each impulse to the local ellipsoid shape — on this
-rotating kernel that pays off, as the printed error quantiles show.
-Denominators are floored at 1% of the largest column norm so the
+rotating kernel that pays off, as the printed error quantiles show. Each
+error map is shown with k = 10 neighbors and with k = 1 (nearest impulse
+only). Denominators are floored at 1% of the largest column norm so the
 vanishing-V boundary ring reads as zero rather than 0/0; errors are
 clipped at 1 for plotting (shared color scale 0..1).
+
+The 5-batch k = 10 maps show a localized hot spot near (0.2, 0.75). This
+is an interference effect of the sparse-sampling regime, not a coverage
+hole: with ~30 samples the 10 nearest neighbors include impulses
+misrotated by up to ~45 degrees, each individually 20-60% wrong, and the
+interpolant — a signed linear combination of their predictions — usually
+cancels those individual errors (which is why k = 10 beats k = 1 almost
+everywhere) but happens to add them constructively in that region, as the
+clean k = 1 maps there confirm. More batches shrink the neighbor radius
+and the effect disappears by 10 batches.
 
 ## Figures
 
@@ -54,17 +65,29 @@ clipped at 1 for plotting (shared color scale 0..1).
 
 ![12_psf_target2_batches5.png](../img/frog_kernel__12_psf_target2_batches5.png)
 
-![13_error_paper_batches01.png](../img/frog_kernel__13_error_paper_batches01.png)
+![13_error_paper_batches01_k01.png](../img/frog_kernel__13_error_paper_batches01_k01.png)
 
-![13_error_paper_batches05.png](../img/frog_kernel__13_error_paper_batches05.png)
+![13_error_paper_batches01_k10.png](../img/frog_kernel__13_error_paper_batches01_k10.png)
 
-![13_error_paper_batches10.png](../img/frog_kernel__13_error_paper_batches10.png)
+![13_error_paper_batches05_k01.png](../img/frog_kernel__13_error_paper_batches05_k01.png)
 
-![14_error_whitened_batches01.png](../img/frog_kernel__14_error_whitened_batches01.png)
+![13_error_paper_batches05_k10.png](../img/frog_kernel__13_error_paper_batches05_k10.png)
 
-![14_error_whitened_batches05.png](../img/frog_kernel__14_error_whitened_batches05.png)
+![13_error_paper_batches10_k01.png](../img/frog_kernel__13_error_paper_batches10_k01.png)
 
-![14_error_whitened_batches10.png](../img/frog_kernel__14_error_whitened_batches10.png)
+![13_error_paper_batches10_k10.png](../img/frog_kernel__13_error_paper_batches10_k10.png)
+
+![14_error_whitened_batches01_k01.png](../img/frog_kernel__14_error_whitened_batches01_k01.png)
+
+![14_error_whitened_batches01_k10.png](../img/frog_kernel__14_error_whitened_batches01_k10.png)
+
+![14_error_whitened_batches05_k01.png](../img/frog_kernel__14_error_whitened_batches05_k01.png)
+
+![14_error_whitened_batches05_k10.png](../img/frog_kernel__14_error_whitened_batches05_k10.png)
+
+![14_error_whitened_batches10_k01.png](../img/frog_kernel__14_error_whitened_batches10_k01.png)
+
+![14_error_whitened_batches10_k10.png](../img/frog_kernel__14_error_whitened_batches10_k10.png)
 
 ## Program
 
@@ -337,36 +360,42 @@ int main()
             }
         }
 
-        // Column-error maps (cf. paper Figure 6), both configurations.
+        // Column-error maps (cf. paper Figure 6), both configurations, with
+        // the full k = 10 neighbor pooling and with k = 1 (nearest impulse only).
         for ( size_t qq = 0; qq < configs.size(); ++qq )
         {
-            KernelEvaluator K(F, nullptr, configs[qq].second, rbf);
-            const Eigen::MatrixXd B = K.block(vertices, vertices);
-            Eigen::VectorXd err(nv);
-            std::vector<double> informative_errs;
-            for ( int jj = 0; jj < nv; ++jj )
+            for ( int num_neighbors : {1, 10} )
             {
-                const double e = ( B.col(jj) - T.col(jj) ).norm()
-                    / std::max(T_col_norms(jj), norm_floor);
-                err(jj) = std::min(e, 1.0);
-                if ( T_col_norms(jj) >= norm_floor )
+                EvalConfig cfg_k = configs[qq].second;
+                cfg_k.num_neighbors = num_neighbors;
+                KernelEvaluator K(F, nullptr, cfg_k, rbf);
+                const Eigen::MatrixXd B = K.block(vertices, vertices);
+                Eigen::VectorXd err(nv);
+                std::vector<double> informative_errs;
+                for ( int jj = 0; jj < nv; ++jj )
                 {
-                    informative_errs.push_back(e);
+                    const double e = ( B.col(jj) - T.col(jj) ).norm()
+                        / std::max(T_col_norms(jj), norm_floor);
+                    err(jj) = std::min(e, 1.0);
+                    if ( T_col_norms(jj) >= norm_floor )
+                    {
+                        informative_errs.push_back(e);
+                    }
                 }
-            }
-            std::printf("  %s  batches=%2d  median rel col err %.3f, p90 %.3f\n",
-                        configs[qq].first, stage,
-                        percentile(informative_errs, 0.5), percentile(informative_errs, 0.9));
+                std::printf("  %s  k=%2d  batches=%2d  median rel col err %.3f, p90 %.3f\n",
+                            configs[qq].first, num_neighbors, stage,
+                            percentile(informative_errs, 0.5), percentile(informative_errs, 0.9));
 
-            Plot2D fig;
-            FieldOptions opts;
-            opts.vmin = 0.0;
-            opts.vmax = 1.0;
-            draw_cg1_field(fig, F->mesh(), err, opts);
-            char path[64];
-            std::snprintf(path, sizeof(path), "%2zu_error_%s_batches%02d.png",
-                          13 + qq, ( qq == 0 ? "paper" : "whitened" ), stage);
-            fig.save_png(path, 560);
+                Plot2D fig;
+                FieldOptions opts;
+                opts.vmin = 0.0;
+                opts.vmax = 1.0;
+                draw_cg1_field(fig, F->mesh(), err, opts);
+                char path[64];
+                std::snprintf(path, sizeof(path), "%2zu_error_%s_batches%02d_k%02d.png",
+                              13 + qq, ( qq == 0 ? "paper" : "whitened" ), stage, num_neighbors);
+                fig.save_png(path, 560);
+            }
         }
     }
 
@@ -411,21 +440,27 @@ frog kernel on a 40 x 40 mesh (1681 vertices), 1521 sample candidates
 tau = 3.0, k = 10 neighbors, gaussian RBF with C_RBF = 3.0
 
 batch  1:  8 impulse responses
-  mean_translation+volume    batches= 1  median rel col err 0.384, p90 0.532
-  whitened_affine+volume_det  batches= 1  median rel col err 0.267, p90 0.476
+  mean_translation+volume    k= 1  batches= 1  median rel col err 0.433, p90 0.586
+  mean_translation+volume    k=10  batches= 1  median rel col err 0.384, p90 0.532
+  whitened_affine+volume_det  k= 1  batches= 1  median rel col err 0.393, p90 0.606
+  whitened_affine+volume_det  k=10  batches= 1  median rel col err 0.267, p90 0.476
 batch  2:  5 impulse responses
 batch  3:  7 impulse responses
 batch  4:  6 impulse responses
 batch  5:  5 impulse responses
-  mean_translation+volume    batches= 5  median rel col err 0.114, p90 0.205
-  whitened_affine+volume_det  batches= 5  median rel col err 0.061, p90 0.103
+  mean_translation+volume    k= 1  batches= 5  median rel col err 0.216, p90 0.459
+  mean_translation+volume    k=10  batches= 5  median rel col err 0.114, p90 0.205
+  whitened_affine+volume_det  k= 1  batches= 5  median rel col err 0.150, p90 0.478
+  whitened_affine+volume_det  k=10  batches= 5  median rel col err 0.061, p90 0.103
 batch  6:  6 impulse responses
 batch  7:  6 impulse responses
 batch  8:  6 impulse responses
 batch  9:  6 impulse responses
 batch 10:  6 impulse responses
-  mean_translation+volume    batches=10  median rel col err 0.046, p90 0.096
-  whitened_affine+volume_det  batches=10  median rel col err 0.036, p90 0.055
+  mean_translation+volume    k= 1  batches=10  median rel col err 0.147, p90 0.359
+  mean_translation+volume    k=10  batches=10  median rel col err 0.046, p90 0.096
+  whitened_affine+volume_det  k= 1  batches=10  median rel col err 0.109, p90 0.413
+  whitened_affine+volume_det  k=10  batches=10  median rel col err 0.036, p90 0.055
 
 61 sample points total; 20 used to interpolate at the 2 targets
 ```
