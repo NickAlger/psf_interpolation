@@ -254,10 +254,13 @@ shows k=1 vs k=10 maps.
 
 0. **Downstream-matrix phase: COMPLETE** (all 7 slices, see the design
    section above). What remains from that thread is step (4) of the
-   original plan — MPI-distributed BRLR — strategy discussion with Nick
-   in progress (2026-07-19, end of third session); the container already
-   maps 1:1 onto the R_a/C_a scatter design
-   (docs/notes/distributed_design.md).
+   original plan — MPI-distributed BRLR. Strategy discussion recorded in
+   [`dev/MPI_STRATEGY.md`](MPI_STRATEGY.md) (four layers, options A-D,
+   recommendation: transport-agnostic ScatterPlan owning the index
+   bookkeeping, MPI-free and serial-CI-testable, transport left to
+   consumers); Nick is mulling the open questions there — NO
+   implementation until he answers them. The container already maps 1:1
+   onto the R_a/C_a scatter design (docs/notes/distributed_design.md).
 1. **API docs**: Doxygen + GitHub Pages, mirroring etree
    (`docs/Doxyfile`, doxygen-awesome theme, deploy workflow). Public API
    prose already lives as `///` comments.
