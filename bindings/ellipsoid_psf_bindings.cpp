@@ -2,7 +2,7 @@
 // Part of ellipsoid_psf — https://github.com/NickAlger/ellipsoid_psf
 //
 // Python bindings. Array-layout convention at the Python boundary: POINTS ARE
-// ROWS, matching numpy/scipy practice (and the etree bindings) — point sets
+// ROWS, matching numpy/scipy practice (and the ellipsoid_tree bindings) — point sets
 // are (n, d), mesh vertices (num_vertices, d), mesh cells (num_cells, d+1),
 // covariance stacks (n, d, d). Internally ellipsoid_psf stores points as columns; the
 // transpose happens here, once, at the boundary.
@@ -103,7 +103,7 @@ py::array_t<double> stack_from_flat_field( const Eigen::MatrixXd& flat, int d )
 
 // Ellipsoid list -> (centers (k, d), Sigmas (k, d, d)) numpy pair.
 std::pair<Eigen::MatrixXd, py::array_t<double>>
-arrays_from_ellipsoids( const std::vector<etree::Ellipsoid>& ells, int d )
+arrays_from_ellipsoids( const std::vector<ellipsoid_tree::Ellipsoid>& ells, int d )
 {
     const int k = static_cast<int>(ells.size());
     Eigen::MatrixXd centers(k, d);

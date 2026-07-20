@@ -30,9 +30,9 @@
 
 #include <Eigen/Dense>
 
-#include "etree/detail/parallel_for.hpp"
-#include "etree/geometry.hpp"
-#include "etree/object_tree.hpp"
+#include "ellipsoid_tree/detail/parallel_for.hpp"
+#include "ellipsoid_tree/geometry.hpp"
+#include "ellipsoid_tree/object_tree.hpp"
 
 #include "ellipsoid_psf/kernel_evaluator.hpp"
 
@@ -176,8 +176,8 @@ block_target_sets( const KernelEvaluator& kernel,
     // Forward piece: each queried source's support ellipsoids (in target
     // space), tagged with its part; one tree, one batched point query.
     {
-        std::vector<std::vector<etree::Ellipsoid>> per_source(num_sources);
-        etree::detail::parallel_for(0, num_sources,
+        std::vector<std::vector<ellipsoid_tree::Ellipsoid>> per_source(num_sources);
+        ellipsoid_tree::detail::parallel_for(0, num_sources,
             [&]( std::ptrdiff_t aa, std::ptrdiff_t bb )
             {
                 for ( std::ptrdiff_t jj = aa; jj < bb; ++jj )
@@ -189,11 +189,11 @@ block_target_sets( const KernelEvaluator& kernel,
                 }
             }, num_threads);
 
-        std::vector<etree::Ellipsoid> ellipsoids;
+        std::vector<ellipsoid_tree::Ellipsoid> ellipsoids;
         std::vector<int> owner_part;
         for ( int jj = 0; jj < num_sources; ++jj )
         {
-            for ( etree::Ellipsoid& e : per_source[jj] )
+            for ( ellipsoid_tree::Ellipsoid& e : per_source[jj] )
             {
                 ellipsoids.push_back(std::move(e));
                 owner_part.push_back(part_of_source[jj]);
@@ -201,7 +201,7 @@ block_target_sets( const KernelEvaluator& kernel,
         }
         if ( !ellipsoids.empty() )
         {
-            const etree::EllipsoidTree tree(std::move(ellipsoids), 1.0, num_threads);
+            const ellipsoid_tree::EllipsoidTree tree(std::move(ellipsoids), 1.0, num_threads);
             const std::vector<std::vector<int>> hits =
                 tree.point_collisions_batch(yy, num_threads);
             for ( int tt = 0; tt < num_targets; ++tt )
@@ -219,8 +219,8 @@ block_target_sets( const KernelEvaluator& kernel,
     // inside pull that target into their part's set.
     if ( kernel.symmetric() )
     {
-        std::vector<std::vector<etree::Ellipsoid>> per_target(num_targets);
-        etree::detail::parallel_for(0, num_targets,
+        std::vector<std::vector<ellipsoid_tree::Ellipsoid>> per_target(num_targets);
+        ellipsoid_tree::detail::parallel_for(0, num_targets,
             [&]( std::ptrdiff_t aa, std::ptrdiff_t bb )
             {
                 for ( std::ptrdiff_t tt = aa; tt < bb; ++tt )
@@ -229,11 +229,11 @@ block_target_sets( const KernelEvaluator& kernel,
                 }
             }, num_threads);
 
-        std::vector<etree::Ellipsoid> ellipsoids;
+        std::vector<ellipsoid_tree::Ellipsoid> ellipsoids;
         std::vector<int> owner_target;
         for ( int tt = 0; tt < num_targets; ++tt )
         {
-            for ( etree::Ellipsoid& e : per_target[tt] )
+            for ( ellipsoid_tree::Ellipsoid& e : per_target[tt] )
             {
                 ellipsoids.push_back(std::move(e));
                 owner_target.push_back(tt);
@@ -241,7 +241,7 @@ block_target_sets( const KernelEvaluator& kernel,
         }
         if ( !ellipsoids.empty() )
         {
-            const etree::EllipsoidTree tree(std::move(ellipsoids), 1.0, num_threads);
+            const ellipsoid_tree::EllipsoidTree tree(std::move(ellipsoids), 1.0, num_threads);
             const std::vector<std::vector<int>> hits =
                 tree.point_collisions_batch(xx, num_threads);
             for ( int jj = 0; jj < num_sources; ++jj )

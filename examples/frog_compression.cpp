@@ -41,11 +41,11 @@
 #include <memory>
 #include <vector>
 
-#include "etree/etree.hpp"
-#include "etree/plot2d.hpp"
+#include "ellipsoid_tree/ellipsoid_tree.hpp"
+#include "ellipsoid_tree/plot2d.hpp"
 #include "ellipsoid_psf/ellipsoid_psf.hpp"
 
-using namespace etree;
+using namespace ellipsoid_tree;
 using namespace ellipsoid_psf;
 
 namespace {
@@ -197,10 +197,10 @@ int main()
         ellipsoids[ii] = Ellipsoid{x, Sigma_of(x)};
         anchors.col(ii) = x;
     }
-    EllipsoidTree etree_tree(ellipsoids, tau);
+    EllipsoidTree ellipsoid_tree_tree(ellipsoids, tau);
     const int num_batches = 10;
     const std::vector<std::vector<int>> batches =
-        pick_ellipsoid_batches(etree_tree, anchors, num_batches);
+        pick_ellipsoid_batches(ellipsoid_tree_tree, anchors, num_batches);
     for ( int b = 0; b < num_batches; ++b )
     {
         const int nb = static_cast<int>(batches[b].size());

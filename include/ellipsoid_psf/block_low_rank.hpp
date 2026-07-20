@@ -44,7 +44,7 @@
 
 #include <Eigen/Dense>
 
-#include "etree/detail/parallel_for.hpp"
+#include "ellipsoid_tree/detail/parallel_for.hpp"
 
 #include "ellipsoid_psf/kernel_evaluator.hpp"
 #include "ellipsoid_psf/kernel_low_rank.hpp"
@@ -330,7 +330,7 @@ block_low_rank( const KernelEvaluator& kernel,
     std::vector<BlockLowRank::Block> blocks(num_parts);
     result.block_info.resize(num_parts);
 
-    etree::detail::parallel_for(0, num_parts,
+    ellipsoid_tree::detail::parallel_for(0, num_parts,
         [&]( std::ptrdiff_t aa, std::ptrdiff_t bb )
         {
             for ( std::ptrdiff_t pp = aa; pp < bb; ++pp )

@@ -100,9 +100,9 @@ EvalConfig gated_config( Frame frame, int num_neighbors = 3, double tau = 2.0 )
     return cfg;
 }
 
-bool inside_any( const Eigen::Vector2d& y, const std::vector<etree::Ellipsoid>& ells )
+bool inside_any( const Eigen::Vector2d& y, const std::vector<ellipsoid_tree::Ellipsoid>& ells )
 {
-    for ( const etree::Ellipsoid& e : ells )
+    for ( const ellipsoid_tree::Ellipsoid& e : ells )
     {
         const Eigen::VectorXd d = y - e.mu;
         if ( d.dot(e.Sigma.llt().solve(d)) <= 1.0 )
@@ -190,7 +190,7 @@ TEST_CASE("support_ellipsoids: predictions vanish outside the returned union")
         int violations = 0;
         for ( int qq = 0; qq < xq.cols(); ++qq )
         {
-            const std::vector<etree::Ellipsoid> ells = F->support_ellipsoids(xq.col(qq), cfg);
+            const std::vector<ellipsoid_tree::Ellipsoid> ells = F->support_ellipsoids(xq.col(qq), cfg);
             CHECK(static_cast<int>(ells.size()) == ( frame == Frame::whitened_affine ? 1 : 3 ));
             for ( int tt = 0; tt < yq.cols(); ++tt )
             {

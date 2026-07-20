@@ -30,8 +30,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # No apt Eigen on purpose: exercises the FetchContent fallbacks (etree,
-      # and Eigen inside etree) within a pip build.
+      # No apt Eigen on purpose: exercises the FetchContent fallbacks (ellipsoid_tree,
+      # and Eigen inside ellipsoid_tree) within a pip build.
       - name: Build wheel
         run: python3 -m pip wheel . --no-deps -w dist
       - name: Install and test

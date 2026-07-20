@@ -32,8 +32,8 @@
 
 #include <Eigen/Dense>
 
-#include "etree/detail/parallel_for.hpp"
-#include "etree/geometry.hpp"
+#include "ellipsoid_tree/detail/parallel_for.hpp"
+#include "ellipsoid_tree/geometry.hpp"
 
 #include "ellipsoid_psf/config.hpp"
 #include "ellipsoid_psf/impulse_response_field.hpp"
@@ -204,7 +204,7 @@ public:
         // The fast path keys its weight cache on a 64-bit exclusion mask.
         if ( row_field_ || config_.num_neighbors > 63 )
         {
-            etree::detail::parallel_for(0, static_cast<std::ptrdiff_t>(ny) * nx,
+            ellipsoid_tree::detail::parallel_for(0, static_cast<std::ptrdiff_t>(ny) * nx,
                 [&]( std::ptrdiff_t aa, std::ptrdiff_t bb )
                 {
                     for ( std::ptrdiff_t ind = aa; ind < bb; ++ind )
@@ -217,7 +217,7 @@ public:
             return out;
         }
 
-        etree::detail::parallel_for(0, nx,
+        ellipsoid_tree::detail::parallel_for(0, nx,
             [&]( std::ptrdiff_t aa, std::ptrdiff_t bb )
             {
                 const Eigen::VectorXd origin = Eigen::VectorXd::Zero(dim_source());
@@ -305,7 +305,7 @@ public:
     /// covers the whole column; in symmetric mode the row field contributes
     /// too, and the full column support is this union PLUS the targets y
     /// with x inside source_support(y). Requires the ellipsoid support gate.
-    std::vector<etree::Ellipsoid> target_support( const Eigen::Ref<const Eigen::VectorXd>& x ) const
+    std::vector<ellipsoid_tree::Ellipsoid> target_support( const Eigen::Ref<const Eigen::VectorXd>& x ) const
     {
         return col_field_->support_ellipsoids(x, config_);
     }
@@ -315,7 +315,7 @@ public:
     /// that contribution vanishes for x outside the union. (The col field
     /// contributes to the row elsewhere; its part is covered per-column by
     /// target_support.) Throws in cols-only mode, where no row field exists.
-    std::vector<etree::Ellipsoid> source_support( const Eigen::Ref<const Eigen::VectorXd>& y ) const
+    std::vector<ellipsoid_tree::Ellipsoid> source_support( const Eigen::Ref<const Eigen::VectorXd>& y ) const
     {
         if ( !row_field_ )
         {

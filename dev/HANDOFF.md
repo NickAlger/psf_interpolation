@@ -9,9 +9,18 @@ The old name was too generic, and the ellipsoid — support model, transport
 map, gate, batch-packing criterion, and the exact block sparsity of the BRLR
 format — turned out to be the organizing idea. Repo, PyPI dist, import name,
 C++ namespace, and CMake package are all `ellipsoid_psf`/`ellipsoid-psf`, so
-there is no repo-name-vs-dist-name mapping to remember (unlike
-`ellipsoid_tree`/`etree`). Macros and CMake options use the
-`ELLIPSOID_PSF_` prefix.
+there is no repo-name-vs-dist-name mapping to remember. Macros and CMake
+options use the `ELLIPSOID_PSF_` prefix.
+
+`ellipsoid_tree` was renamed the same day for the same class of reason: its
+import name and namespace `etree` collided with **The Etree Library** (Tu,
+O'Hallaron and López, CMU Quake project), an established C library storing
+octrees as an on-disk B-tree database, used to build billion-element finite
+element meshes for earthquake simulation — the same domain, with real
+`find_package`/include-path conflict potential. It is now `ellipsoid_tree`
+throughout as of its v0.2.0, which is the version this repo pins. Neither
+library ships a short alias; docs and tests use reader-chosen
+`import ellipsoid_psf as ep` and `import ellipsoid_tree as et`.
 
 ## What this is
 
@@ -31,9 +40,9 @@ code). The original research code lives in
 `hlibpro_python_wrapper/src/product_convolution_kernel.h` +
 `rbf_interpolation.h` (maintainer machine); this repo supersedes it.
 
-Depends on [etree](https://github.com/NickAlger/ellipsoid_tree) (same
+Depends on [ellipsoid_tree](https://github.com/NickAlger/ellipsoid_tree) (same
 maintainer; geometry layer: SimplexMesh, KDTree, ellipsoids, batch picking)
-+ Eigen. Infrastructure deliberately mirrors etree: header-only C++17,
++ Eigen. Infrastructure deliberately mirrors ellipsoid_tree: header-only C++17,
 pybind11 bindings via scikit-build-core, doctest, show-don't-tell docs
 pipeline, version single-sourced in `include/ellipsoid_psf/ellipsoid_psf.hpp`.
 
@@ -108,7 +117,7 @@ Nick's verdict on gaussian_psf).
   needs BOTH: block target set = targets in the union of block sources'
   target_support, PLUS targets whose source_support contains a block source
   (the row field gates on the transported x, so "x in y's ellipsoid" entries
-  exist that forward ellipsoids miss). Two etree::EllipsoidTree passes.
+  exist that forward ellipsoids miss). Two ellipsoid_tree::EllipsoidTree passes.
   Support::none => full-width blocks. Block sparsity is LOSSLESS relative to
   the ellipsoid_psf kernel => testable invariant (kernel == 0 outside computed sets).
 - **Partition = plain data** (vector of source-index sets), default
@@ -196,7 +205,7 @@ Nick's verdict on gaussian_psf).
   (Frobenius truncation rule recomputed independently; ACA disconnected
   block-diagonal support test).
 - Bindings: module `ellipsoid_psf` (dist name `ellipsoid-psf`, free on PyPI, NOT
-  yet published); points-are-rows convention like etree; field holder is
+  yet published); points-are-rows convention like ellipsoid_tree; field holder is
   shared_ptr (evaluators keep fields alive). **No short alias is shipped.**
   The natural `epsf` is taken on PyPI (an unrelated JWST "effective PSF"
   package that also installs a top-level `epsf`), and ePSF is established
@@ -205,11 +214,11 @@ Nick's verdict on gaussian_psf).
   and binding tests use a reader-chosen `import ellipsoid_psf as ep`.
 - Example + docs pipeline: `examples/frog_kernel.cpp` and
   `examples/frog_compression.cpp` → `docs/examples/*.md` via
-  `docs/generate_examples.py` (etree-style; CI freshness-checks the
+  `docs/generate_examples.py` (ellipsoid_tree-style; CI freshness-checks the
   markdown incl. per-figure `<stem>.caption.md` captions, figure bytes
   exempt; the generator also emits a Notes index from `docs/notes/*.md` —
   never hand-edit docs/README.md). Field figures carry viridis colorbars
-  drawn from Plot2D primitives (lifting into etree is parked in etree's
+  drawn from Plot2D primitives (lifting into ellipsoid_tree is parked in ellipsoid_tree's
   local handoff).
   Headline result: on the rotating frog kernel, whitened_affine+volume_det
   beats the paper config at every stage (median col err 0.267/0.061/0.036 vs
@@ -257,11 +266,11 @@ shows k=1 vs k=10 maps.
   overlapping-variables use case); symmetric evaluator requires all-equal
   dims. Tests: 1D-source -> 2D-target closed-form battery + coarse/fine
   same-dim case, C++ and bindings.
-- **etree upstream issue found**: SimplexMesh point location misses points
+- **ellipsoid_tree upstream issue found**: SimplexMesh point location misses points
   exactly on the interior cube-diagonal edge shared by all 6 Freudenthal
   tets in 3D (returns -1; violates the closed-simplex convention).
   Vertex-coincident and face-diagonal queries work. Measure-zero for generic
-  queries, so not blocking; fix belongs in etree's intersection tolerance
+  queries, so not blocking; fix belongs in ellipsoid_tree's intersection tolerance
   with its own tests.
 
 ## Remaining work (rough order)
@@ -275,15 +284,15 @@ shows k=1 vs k=10 maps.
    consumers); Nick is mulling the open questions there — NO
    implementation until he answers them. The container already maps 1:1
    onto the R_a/C_a scatter design (docs/notes/distributed_design.md).
-1. **API docs**: Doxygen + GitHub Pages, mirroring etree
+1. **API docs**: Doxygen + GitHub Pages, mirroring ellipsoid_tree
    (`docs/Doxyfile`, doxygen-awesome theme, deploy workflow). Public API
    prose already lives as `///` comments.
 2. **Release wiring**: wheels.yml (cibuildwheel + PyPI Trusted Publishing —
    register project `ellipsoid-psf`), CITATION.cff, CHANGELOG.md,
-   version-consistency extended to CITATION.cff. Copy etree's setup; see
+   version-consistency extended to CITATION.cff. Copy ellipsoid_tree's setup; see
    ellipsoid_tree/dev/HANDOFF.md for the wiring details and the
    repo-name-vs-dist-name gotcha.
-3. **Python quickstart notebook** (etree has one; execute-checked in CI).
+3. **Python quickstart notebook** (ellipsoid_tree has one; execute-checked in CI).
 4. **Port consumers**: localpsf-style driver (the old
    ProductConvolutionKernel/ImpulseResponseBatches Python classes) and the
    GPSF/ymir-adjacent BRLR/GLR projects consume this instead of
@@ -330,15 +339,15 @@ shows k=1 vs k=10 maps.
   bindings TU especially) at -j 8 drove the machine into swap hard enough
   to freeze the UI (2026-07-19; has happened before). ~2 GB per TU is the
   planning number.
-- Local dev against the etree checkout:
-  `cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DFETCHCONTENT_SOURCE_DIR_ETREE=$HOME/repos/ellipsoid_tree`.
-  Installed-etree route also works (`find_package`); ELLIPSOID_PSF_INSTALL requires it
-  (exporting against vendored etree is a hard error by design).
+- Local dev against the ellipsoid_tree checkout:
+  `cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DFETCHCONTENT_SOURCE_DIR_ELLIPSOID_TREE=$HOME/repos/ellipsoid_tree`.
+  Installed-ellipsoid_tree route also works (`find_package`); ELLIPSOID_PSF_INSTALL requires it
+  (exporting against vendored ellipsoid_tree is a hard error by design).
 - Python on Nick's machine: use the **t3toolbox** env
   (`-DPython_EXECUTABLE=$HOME/miniconda3/envs/t3toolbox/bin/python`,
   `PYTHONPATH=build/bindings pytest bindings/tests`); the fenics env lacks
   pytest. For `pip wheel .` prepend `env CC=gcc CXX=g++` (stray env vars
-  point at a broken compiler). etree's own python module (for cross-checking
+  point at a broken compiler). ellipsoid_tree's own python module (for cross-checking
   / the batch picker) is at
   `~/repos/ellipsoid_tree/build/bindings` (also cpython-311).
 - Docs regen: `python3 docs/generate_examples.py --build-dir build` and
@@ -360,7 +369,7 @@ shows k=1 vs k=10 maps.
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
-      -DFETCHCONTENT_SOURCE_DIR_ETREE=$HOME/repos/ellipsoid_tree \
+      -DFETCHCONTENT_SOURCE_DIR_ELLIPSOID_TREE=$HOME/repos/ellipsoid_tree \
       -DELLIPSOID_PSF_BUILD_PYTHON=ON -DPython_EXECUTABLE=$HOME/miniconda3/envs/t3toolbox/bin/python
 cmake --build build -j 3 && ctest --test-dir build   # -j 3: see the OOM gotcha
 PYTHONPATH=build/bindings ~/miniconda3/envs/t3toolbox/bin/python -m pytest bindings/tests -q

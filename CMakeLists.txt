@@ -21,30 +21,32 @@ target_include_directories(ellipsoid_psf INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
 
-# etree (which brings Eigen and Threads): use an installed copy if available,
+# ellipsoid_tree (which brings Eigen and Threads): use an installed copy if available,
 # otherwise download a pinned release. For local development against a
-# checkout, configure with -DFETCHCONTENT_SOURCE_DIR_ETREE=/path/to/ellipsoid_tree.
-set(_ellipsoid_psf_etree_vendored FALSE)
-find_package(etree 0.1 QUIET CONFIG)
-if(NOT TARGET etree::etree)
-    set(_ellipsoid_psf_etree_vendored TRUE)
-    option(ELLIPSOID_PSF_FETCH_ETREE "Download etree if no installed copy is found" ON)
-    if(NOT ELLIPSOID_PSF_FETCH_ETREE)
+# checkout, configure with -DFETCHCONTENT_SOURCE_DIR_ELLIPSOID_TREE=/path/to/ellipsoid_tree.
+set(_ellipsoid_psf_ellipsoid_tree_vendored FALSE)
+find_package(ellipsoid_tree 0.2 QUIET CONFIG)
+if(NOT TARGET ellipsoid_tree::ellipsoid_tree)
+    set(_ellipsoid_psf_ellipsoid_tree_vendored TRUE)
+    option(ELLIPSOID_PSF_FETCH_ELLIPSOID_TREE "Download ellipsoid_tree if no installed copy is found" ON)
+    if(NOT ELLIPSOID_PSF_FETCH_ELLIPSOID_TREE)
         message(FATAL_ERROR
-            "ellipsoid_psf requires etree. Install it (https://github.com/NickAlger/ellipsoid_tree) "
-            "or enable ELLIPSOID_PSF_FETCH_ETREE.")
+            "ellipsoid_psf requires ellipsoid_tree. Install it (https://github.com/NickAlger/ellipsoid_tree) "
+            "or enable ELLIPSOID_PSF_FETCH_ELLIPSOID_TREE.")
     endif()
     if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
         cmake_policy(SET CMP0135 NEW)
     endif()
     include(FetchContent)
-    FetchContent_Declare(etree
-        URL https://github.com/NickAlger/ellipsoid_tree/archive/refs/tags/v0.1.0.tar.gz
-        URL_HASH SHA256=938db0e4ade40281e2d0be39911927734f814d5ef333ab75be750f595514c411)
-    FetchContent_MakeAvailable(etree)
-    message(STATUS "ellipsoid_psf: using downloaded etree v0.1.0 (${etree_SOURCE_DIR})")
+    # Single-sourced so the URL and the status message cannot drift apart.
+    set(_ellipsoid_tree_pinned_version 0.2.0)
+    FetchContent_Declare(ellipsoid_tree
+        URL https://github.com/NickAlger/ellipsoid_tree/archive/refs/tags/v${_ellipsoid_tree_pinned_version}.tar.gz
+        URL_HASH SHA256=24e66d161a85a9a1f98cb3838b0bb14edeba98d7c7d1dfb98678bdd61852ad66)
+    FetchContent_MakeAvailable(ellipsoid_tree)
+    message(STATUS "ellipsoid_psf: using downloaded ellipsoid_tree v${_ellipsoid_tree_pinned_version} (${ellipsoid_tree_SOURCE_DIR})")
 endif()
-target_link_libraries(ellipsoid_psf INTERFACE etree::etree)
+target_link_libraries(ellipsoid_psf INTERFACE ellipsoid_tree::ellipsoid_tree)
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
     option(ELLIPSOID_PSF_BUILD_TESTS "Build ellipsoid_psf tests" ON)
@@ -70,12 +72,12 @@ if(ELLIPSOID_PSF_BUILD_PYTHON)
 endif()
 
 # ------------------------- Installation / CMake package export -------------------------
-# Default ON when built standalone against an *installed* etree; OFF as a
+# Default ON when built standalone against an *installed* ellipsoid_tree; OFF as a
 # subproject, OFF inside pip builds (scikit-build-core would otherwise install
-# the headers into the wheel), and OFF when etree came from the FetchContent
-# fallback — the exported ellipsoid_psfConfig.cmake does find_dependency(etree),
-# which only works if consumers can find an installed etree.
-if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR AND NOT SKBUILD AND NOT _ellipsoid_psf_etree_vendored)
+# the headers into the wheel), and OFF when ellipsoid_tree came from the FetchContent
+# fallback — the exported ellipsoid_psfConfig.cmake does find_dependency(ellipsoid_tree),
+# which only works if consumers can find an installed ellipsoid_tree.
+if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR AND NOT SKBUILD AND NOT _ellipsoid_psf_ellipsoid_tree_vendored)
     set(ELLIPSOID_PSF_INSTALL_DEFAULT ON)
 else()
     set(ELLIPSOID_PSF_INSTALL_DEFAULT OFF)
@@ -83,10 +85,10 @@ endif()
 option(ELLIPSOID_PSF_INSTALL
     "Generate install and CMake package export rules" ${ELLIPSOID_PSF_INSTALL_DEFAULT})
 
-if(ELLIPSOID_PSF_INSTALL AND _ellipsoid_psf_etree_vendored)
+if(ELLIPSOID_PSF_INSTALL AND _ellipsoid_psf_ellipsoid_tree_vendored)
     message(FATAL_ERROR
-        "ELLIPSOID_PSF_INSTALL requires an installed etree (found via find_package); the "
-        "FetchContent fallback cannot be exported. Install etree first, then reconfigure.")
+        "ELLIPSOID_PSF_INSTALL requires an installed ellipsoid_tree (found via find_package); the "
+        "FetchContent fallback cannot be exported. Install ellipsoid_tree first, then reconfigure.")
 endif()
 
 if(ELLIPSOID_PSF_INSTALL)

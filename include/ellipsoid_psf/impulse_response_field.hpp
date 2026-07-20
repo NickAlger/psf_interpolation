@@ -14,7 +14,7 @@
 /// different dimensions otherwise). Every piece of data has one of two
 /// homes:
 ///
-///  - target side (function data): a simplicial mesh (etree::SimplexMesh)
+///  - target side (function data): a simplicial mesh (ellipsoid_tree::SimplexMesh)
 ///    carrying the batch functions as CG1 vertex vectors — each batch is the
 ///    response of the operator to a weighted Dirac comb — plus all moment
 ///    VALUES: masses V in R, means mu in Omega_target, covariances Sigma in
@@ -60,9 +60,9 @@
 
 #include <Eigen/Dense>
 
-#include "etree/geometry.hpp"
-#include "etree/kd_tree.hpp"
-#include "etree/simplex_mesh.hpp"
+#include "ellipsoid_tree/geometry.hpp"
+#include "ellipsoid_tree/kd_tree.hpp"
+#include "ellipsoid_tree/simplex_mesh.hpp"
 
 #include "ellipsoid_psf/config.hpp"
 
@@ -130,9 +130,9 @@ public:
     /// Total number of sample points across all batches.
     int num_sample_points() const { return static_cast<int>(sample_points_.size()); }
     /// The mesh carrying the batch functions.
-    const etree::SimplexMesh& target_mesh() const { return mesh_target_; }
+    const ellipsoid_tree::SimplexMesh& target_mesh() const { return mesh_target_; }
     /// The mesh carrying the moment fields (the target mesh in the square case).
-    const etree::SimplexMesh& source_mesh() const
+    const ellipsoid_tree::SimplexMesh& source_mesh() const
     {
         return mesh_source_ ? *mesh_source_ : mesh_target_;
     }
@@ -864,7 +864,7 @@ public:
     /// sparsity built from these sets lossless w.r.t. the approximate
     /// kernel). Ellipsoids are returned at UNIT scale, config.tau folded
     /// into Sigma, so membership is (y - mu)^T Sigma^{-1} (y - mu) <= 1
-    /// (etree::EllipsoidTree consumes them with tau = 1).
+    /// (ellipsoid_tree::EllipsoidTree consumes them with tau = 1).
     ///
     /// whitened_affine shares one gate across the neighbor set and yields a
     /// single ellipsoid (the field ellipsoid at x); the other frames yield
@@ -873,7 +873,7 @@ public:
     /// source mesh under a configuration needing field values there).
     /// Requires config.support == Support::ellipsoid: without the gate the
     /// predictions have no compact support and this throws.
-    std::vector<etree::Ellipsoid> support_ellipsoids( const Eigen::Ref<const Eigen::VectorXd>& x,
+    std::vector<ellipsoid_tree::Ellipsoid> support_ellipsoids( const Eigen::Ref<const Eigen::VectorXd>& x,
                                                       const EvalConfig& config ) const
     {
         if ( x.size() != dim_source_ )
@@ -942,12 +942,12 @@ public:
             }
         }
 
-        std::vector<etree::Ellipsoid> out;
+        std::vector<ellipsoid_tree::Ellipsoid> out;
         if ( config.frame == Frame::whitened_affine )
         {
             // Shared gate |W(x)(y - mu(x))| <= tau, i.e. the field ellipsoid
             // at x: (y - mu_x)^T (tau^2 (W_x^2)^{-1})^{-1} (y - mu_x) <= 1.
-            out.push_back(etree::Ellipsoid{ mu_x,
+            out.push_back(ellipsoid_tree::Ellipsoid{ mu_x,
                                             tau_squared * ( W_x * W_x ).inverse() });
             return out;
         }
@@ -975,7 +975,7 @@ public:
                 case Frame::whitened_affine: // handled above
                     break;
             }
-            out.push_back(etree::Ellipsoid{ std::move(center),
+            out.push_back(ellipsoid_tree::Ellipsoid{ std::move(center),
                                             tau_squared * sample_Sigma_[ii] });
         }
         return out;
@@ -986,7 +986,7 @@ private:
     /// as the single hook where a global-domain indicator would plug in for
     /// distributed use. Outputs the containing cell and its barycentric
     /// coordinates when inside.
-    static bool locate( const etree::SimplexMesh& mesh,
+    static bool locate( const ellipsoid_tree::SimplexMesh& mesh,
                         const Eigen::Ref<const Eigen::VectorXd>& p,
                         int& cell, Eigen::VectorXd& alpha )
     {
@@ -1001,8 +1001,8 @@ private:
 
     int dim_source_ = 0;
     int dim_target_ = 0;
-    etree::SimplexMesh                mesh_target_;
-    std::optional<etree::SimplexMesh> mesh_source_; // absent: source = target
+    ellipsoid_tree::SimplexMesh                mesh_target_;
+    std::optional<ellipsoid_tree::SimplexMesh> mesh_source_; // absent: source = target
     bool batches_normalized_ = true;
 
     bool has_sample_V_     = false;
@@ -1027,7 +1027,7 @@ private:
     Eigen::MatrixXd field_Sigma_; // (dim_target^2, num_source_vertices), col v = vec(Sigma_v), or empty
     Eigen::MatrixXd field_W_;     // derived: column v = vec(Sigma_v^{-1/2}), or empty
 
-    etree::KDTree kdtree_; // over the sample points (source domain)
+    ellipsoid_tree::KDTree kdtree_; // over the sample points (source domain)
     bool          kdtree_dirty_ = false;
 };
 

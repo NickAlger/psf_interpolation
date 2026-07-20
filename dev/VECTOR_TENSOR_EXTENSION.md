@@ -54,7 +54,7 @@ labeled j (restriction, not interpolation, over the discrete factor).
 The one place a native mechanism pays: **Dirac combs can mix components.**
 The packing constraint is only support-disjointness, so one operator
 application can recover responses for different components at different
-points. Batch picking becomes packing over (point, component) pairs — etree's
+points. Batch picking becomes packing over (point, component) pairs — ellipsoid_tree's
 picker needs nothing (it packs ellipsoids), and the evaluation library needs
 exactly one mechanism: a per-sample component tag plus tag-filtered neighbor
 selection. Cost of p components then trades against spatial sampling density
@@ -125,7 +125,7 @@ Checked 2026-07-19, per public surface:
   (see scope cut above) — unchanged.
 - Validation matrix, batches_normalized, gate, short circuits, source/target
   split, bindings conventions: component-blind — unchanged.
-- Batch picking (etree): packs ellipsoids, label-agnostic — unchanged.
+- Batch picking (ellipsoid_tree): packs ellipsoids, label-agnostic — unchanged.
 
 Conclusion: nothing in the current API blocks the extension; every extension
 point is additive. The protection worth having is the invariants below, not

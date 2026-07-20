@@ -12,7 +12,7 @@
 // deliberately ignore — a-priori moments are never perfect.
 //
 // The pipeline: support ellipsoids from the moment formulas -> greedy
-// non-overlapping batch picking (etree) -> impulse response batches ->
+// non-overlapping batch picking (ellipsoid_tree) -> impulse response batches ->
 // kernel evaluation anywhere by transported-impulse interpolation (ellipsoid_psf).
 // The figures walk through it: the first five batches with their support
 // ellipsoids and the two target points (red); the sample points, with the
@@ -46,11 +46,11 @@
 #include <set>
 #include <vector>
 
-#include "etree/etree.hpp"
-#include "etree/plot2d.hpp"
+#include "ellipsoid_tree/ellipsoid_tree.hpp"
+#include "ellipsoid_tree/plot2d.hpp"
 #include "ellipsoid_psf/ellipsoid_psf.hpp"
 
-using namespace etree;
+using namespace ellipsoid_tree;
 using namespace ellipsoid_psf;
 
 namespace {
@@ -171,11 +171,11 @@ int main()
         anchors.col(ii) = x;
     }
 
-    // ---- Greedy non-overlapping batch picking (etree) ----
+    // ---- Greedy non-overlapping batch picking (ellipsoid_tree) ----
     const int num_batches = 10;
-    EllipsoidTree etree_tree(ellipsoids, tau);
+    EllipsoidTree ellipsoid_tree_tree(ellipsoids, tau);
     const std::vector<std::vector<int>> batches =
-        pick_ellipsoid_batches(etree_tree, anchors, num_batches);
+        pick_ellipsoid_batches(ellipsoid_tree_tree, anchors, num_batches);
 
     const std::vector<Eigen::Vector2d> targets = {{0.62, 0.33}, {0.28, 0.71}};
     const Style ellipse_style{with_alpha(colors::black(), 0.65), 1.0, colors::transparent()};

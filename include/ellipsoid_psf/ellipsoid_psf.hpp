@@ -8,7 +8,7 @@
 /// support. Evaluate an integral kernel Phi(y, x) anywhere by interpolating
 /// translated (or affinely transported) impulse responses sampled at
 /// scattered points, each supported within an ellipsoid. Header-only C++17;
-/// depends on Eigen and etree. https://github.com/NickAlger/ellipsoid_psf
+/// depends on Eigen and ellipsoid_tree. https://github.com/NickAlger/ellipsoid_psf
 ///
 /// The method comes from N. Alger, T. Hartland, N. Petra, O. Ghattas,
 /// "Point spread function approximation of high-rank Hessians with locally

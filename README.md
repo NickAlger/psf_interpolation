@@ -9,7 +9,7 @@ The evaluated kernel then compresses to a **block low rank** matrix whose
 block sparsity follows exactly from the support ellipsoids, giving
 `apply`/`applyT` matvecs for the probed operator. Header-only C++17 with
 Python bindings; depends on Eigen and
-[etree](https://github.com/NickAlger/ellipsoid_tree).
+[ellipsoid_tree](https://github.com/NickAlger/ellipsoid_tree).
 
 > **Status: work in progress.** The full evaluation pipeline is implemented
 > and tested: the impulse-response container, the per-neighbor prediction
@@ -29,7 +29,7 @@ Python bindings; depends on Eigen and
 *One impulse response batch of the "frog" kernel with its support ellipsoids
 and two evaluation targets (red), from the
 [end-to-end example](docs/examples/frog_kernel.md): support ellipsoids from
-a-priori moments → non-overlapping batch picking (etree) → impulse response
+a-priori moments → non-overlapping batch picking (ellipsoid_tree) → impulse response
 batches → kernel evaluation anywhere. With 10 batches the median relative
 column error is 4.6% for the paper's configuration and 3.6% for
 `whitened_affine` + `volume_det`, which deforms each impulse to the local
@@ -159,16 +159,16 @@ cmake -S . -B build && cmake --build build -j 4 && ctest --test-dir build
 
 (`-j 4`, not `-j $(nproc)` — see the compile-time note below.)
 
-etree is found via `find_package(etree)`, with a pinned FetchContent download
+ellipsoid_tree is found via `find_package(ellipsoid_tree)`, with a pinned FetchContent download
 as fallback (for local development against a checkout:
-`-DFETCHCONTENT_SOURCE_DIR_ETREE=/path/to/ellipsoid_tree`). Python module:
+`-DFETCHCONTENT_SOURCE_DIR_ELLIPSOID_TREE=/path/to/ellipsoid_tree`). Python module:
 `pip install .`, or `cmake -B build -DELLIPSOID_PSF_BUILD_PYTHON=ON` and use
 `build/bindings`. Binding tests (`bindings/tests`) check the C++ against a
 pure-numpy reference implementation over every configuration axis.
 
 ## Compile time and memory
 
-ellipsoid_psf is header-only and includes Eigen (via etree), so every translation
+ellipsoid_psf is header-only and includes Eigen (via ellipsoid_tree), so every translation
 unit that includes a ellipsoid_psf header pays the full template-instantiation cost —
 and ellipsoid_psf is substantially heavier than a bare Eigen include, because the
 library's concrete inline function bodies (among them the SVD/QR
@@ -201,7 +201,7 @@ isolated in one place so a global-domain indicator can plug in later.
   approximation of high-rank Hessians with locally supported non-negative
   integral kernels*, SIAM Journal on Scientific Computing 46(3), 2024,
   A1658–A1689 — the method this library extracts and extends.
-- [etree](https://github.com/NickAlger/ellipsoid_tree) — geometry layer
+- [ellipsoid_tree](https://github.com/NickAlger/ellipsoid_tree) — geometry layer
   (simplicial meshes, kd-trees, ellipsoid intersections, batch picking).
 
 MIT license.
