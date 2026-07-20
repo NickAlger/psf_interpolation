@@ -93,6 +93,44 @@ int median_int( std::vector<int> v )
     return v[v.size() / 2];
 }
 
+// Vertical viridis colorbar just right of the unit square, labeled at the
+// bottom / middle / top values.
+void add_colorbar( Plot2D& fig, double vmin, double vmax, const char* fmt )
+{
+    const double x0 = 1.04;
+    const double x1 = 1.08;
+    const int nseg = 64;
+    for ( int ii = 0; ii < nseg; ++ii )
+    {
+        const double t0 = ii / double(nseg);
+        const double t1 = ( ii + 1 ) / double(nseg);
+        fig.add(Box{Eigen::Vector2d(x0, t0), Eigen::Vector2d(x1, t1 + 0.002)},
+                Style{colors::transparent(), 0.0, colormap_viridis(( t0 + t1 ) / 2.0)});
+    }
+    fig.add(Box{Eigen::Vector2d(x0, 0.0), Eigen::Vector2d(x1, 1.0)},
+            Style{with_alpha(colors::black(), 0.8), 1.0, colors::transparent()});
+    for ( double t : { 0.0, 0.5, 1.0 } )
+    {
+        char label[32];
+        std::snprintf(label, sizeof(label), fmt, vmin + t * ( vmax - vmin ));
+        fig.add_text(Eigen::Vector2d(x1 + 0.015, t - 0.01), label, 12.0, colors::black(),
+                     TextAnchor::start);
+    }
+}
+
+// The docs generator emits <stem>.caption.md above the matching figure.
+void write_caption( const char* figure_stem, const std::string& text )
+{
+    char path[128];
+    std::snprintf(path, sizeof(path), "%s.caption.md", figure_stem);
+    std::FILE* f = std::fopen(path, "w");
+    if ( f )
+    {
+        std::fputs(text.c_str(), f);
+        std::fclose(f);
+    }
+}
+
 } // end anonymous namespace
 
 int main()
@@ -315,6 +353,19 @@ int main()
         fig.save_png("01_partition_and_target_set.png", 560);
         std::printf("highlighted block: %zu sources couple to %zu of %d targets\n",
                     blk.source_ids.size(), blk.target_ids.size(), nv);
+
+        char caption[700];
+        std::snprintf(caption, sizeof(caption),
+            "**The source partition and one block's reach.** Eight subdomains "
+            "(colors) from recursive median bisection of the source points. For "
+            "the highlighted block (black): the thin ellipses are a sample of its "
+            "support ellipsoids (every 24th source), and the blue halos mark the "
+            "%zu of %d target vertices where its kernel columns can be nonzero. "
+            "Every entry outside that set is exactly zero — the block sparsity is "
+            "lossless, and all approximation error comes from the per-block "
+            "truncation.",
+            blk.target_ids.size(), nv);
+        write_caption("01_partition_and_target_set", caption);
     }
 
     // ---- Figure: per-block rank as a map over the source domain ----
@@ -330,8 +381,19 @@ int main()
         Plot2D fig;
         FieldOptions opts;
         opts.vmin = 0.0;
+        opts.vmax = rank_field.maxCoeff();
         draw_cg1_field(fig, F->target_mesh(), rank_field, opts);
+        add_colorbar(fig, opts.vmin, opts.vmax, "%.0f");
         fig.save_png("02_block_ranks.png", 560);
+
+        write_caption("02_block_ranks",
+            "**Per-block compressed rank at the headline tolerance (rtol 1e-2), "
+            "as a map over the source domain.** Each subdomain is colored by the "
+            "rank of its block after Frobenius truncation. Rank tracks how much "
+            "the kernel varies across the block relative to the ellipsoid size: "
+            "the middle columns, where the support ellipsoids are large and "
+            "rotate quickly, need noticeably higher rank than the calmer left "
+            "and right edges.");
     }
 
     // ---- Figures: column-error maps, BRLR vs GLR at equal storage ----
@@ -352,10 +414,33 @@ int main()
         opts.vmax = 1.0;
         Plot2D fig_b;
         draw_cg1_field(fig_b, F->target_mesh(), err_brlr, opts);
+        add_colorbar(fig_b, 0.0, 1.0, "%.1f");
         fig_b.save_png("03_col_err_brlr.png", 560);
         Plot2D fig_g;
         draw_cg1_field(fig_g, F->target_mesh(), err_glr, opts);
+        add_colorbar(fig_g, 0.0, 1.0, "%.1f");
         fig_g.save_png("04_col_err_glr_equal_storage.png", 560);
+
+        char caption[700];
+        std::snprintf(caption, sizeof(caption),
+            "**BRLR relative column error at rtol 1e-2.** The error of each "
+            "kernel column, plotted at its source location (relative per column, "
+            "denominators floored at 1%% of the largest column norm, clipped at "
+            "1; shared 0..1 color scale with the next figure). The per-block "
+            "relative tolerance spreads accuracy uniformly — including the "
+            "small-amplitude columns near the boundary.");
+        write_caption("03_col_err_brlr", caption);
+
+        std::snprintf(caption, sizeof(caption),
+            "**Global low rank with the same total storage (rank %d): the "
+            "locality comparison.** A single Frobenius-optimal factorization "
+            "spends its budget on the dominant interior structure and "
+            "under-serves the small-amplitude, fast-rotating columns near the "
+            "boundary — the bright ring. The block format protects them by "
+            "construction: each block meets the tolerance relative to its own "
+            "norm.",
+            rank_glr);
+        write_caption("04_col_err_glr_equal_storage", caption);
     }
 
     return 0;

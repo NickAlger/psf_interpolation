@@ -49,22 +49,32 @@ def split_intro(source: str):
     return title, intro_md, "\n".join(lines[body_start:])
 
 
-def run_example(exe: Path, scratch: Path) -> tuple[str, list[Path]]:
+def run_example(exe: Path, scratch: Path) -> tuple[str, list[Path], dict[str, str]]:
     result = subprocess.run([str(exe)], cwd=scratch, capture_output=True, text=True, timeout=600)
     if result.returncode != 0:
         sys.exit(f"example {exe.name} failed:\n{result.stdout}\n{result.stderr}")
     figures = sorted(p for p in scratch.iterdir() if p.suffix in (".svg", ".png"))
-    return result.stdout, figures
+    # A figure may write a caption next to itself as <stem>.caption.md; the
+    # caption is emitted above the image (and, unlike figure bytes, IS
+    # covered by the freshness check).
+    captions = {}
+    for fig in figures:
+        caption_file = fig.with_name(fig.stem + ".caption.md")
+        if caption_file.exists():
+            captions[fig.name] = caption_file.read_text().strip()
+    return result.stdout, figures, captions
 
 
 def build_page(name: str, title: str, intro: str, body: str, stdout: str,
-               figure_names: list[str]) -> str:
+               figure_names: list[str], captions: dict[str, str]) -> str:
     parts = [f"# {title}", ""]
     if intro:
         parts += [intro, ""]
     if figure_names:
         parts += ["## Figures", ""]
         for fig in figure_names:
+            if fig in captions:
+                parts += [captions[fig], ""]
             parts += [f"![{fig}](../img/{name}__{fig})", ""]
     parts += ["## Program", "", "```cpp", body.rstrip(), "```", ""]
     parts += ["## Output", "", "```text", stdout.rstrip(), "```", ""]
@@ -101,14 +111,14 @@ def main() -> int:
 
         with tempfile.TemporaryDirectory() as tmp:
             scratch = Path(tmp)
-            stdout, figures = run_example(exe, scratch)
+            stdout, figures, captions = run_example(exe, scratch)
             figure_names = []
             for fig in figures:
                 target = IMG_DIR / f"{name}__{fig.name}"
                 shutil.copyfile(fig, target)
                 figure_names.append(fig.name)
 
-        page = build_page(name, title, intro, body, stdout, figure_names)
+        page = build_page(name, title, intro, body, stdout, figure_names, captions)
         (PAGES_DIR / f"{name}.md").write_text(page)
         index_lines.append(f"- [{title}](examples/{name}.md)")
         print(f"generated docs/examples/{name}.md ({len(figure_names)} figures)")
