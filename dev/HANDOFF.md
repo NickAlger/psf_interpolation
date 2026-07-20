@@ -348,10 +348,13 @@ shows k=1 vs k=10 maps.
   proven stable; avoid printing raw FP sums.
 - If example figure *names* change, delete the stale files in `docs/img/`
   by hand — the generator copies but never removes.
-- Claude session context for this project lives in the auto-memory of the
-  `nicks_research_experiments` project
-  (`~/.claude/projects/-home-nick-repos-nicks-research-experiments/memory/ellipsoid-psf-package.md`),
-  since sessions have been run from that repo.
+- Claude session context for this project lives in this repo's own auto-memory,
+  `~/.claude/projects/-home-nick-repos-ellipsoid-psf/memory/` (moved there from
+  the `-home-nick-repos-psf-interpolation` key during the 2026-07-20 rename —
+  the key is derived from the repo path, so renaming the directory orphans it).
+  Earlier sessions ran from the `nicks_research_experiments` repo and left
+  design history in that project's memory as `ellipsoid-psf-package.md`.
+  Start Claude from `~/repos/ellipsoid_psf` so the right memory loads.
 
 ## Quick commands
 
