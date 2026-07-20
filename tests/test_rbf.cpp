@@ -7,9 +7,9 @@
 
 #include <Eigen/Dense>
 
-#include "psfi/rbf.hpp"
+#include "ellipsoid_psf/rbf.hpp"
 
-using namespace psfi;
+using namespace ellipsoid_psf;
 
 namespace {
 

@@ -5,16 +5,16 @@
 import numpy as np
 import pytest
 
-import psfi
+import ellipsoid_psf as ep
 
-from test_psfi_py import make_grid_mesh, make_interval_mesh
+from test_ellipsoid_psf_py import make_grid_mesh, make_interval_mesh
 
 
 def build_cross_field():
     tgt_v, tgt_c = make_grid_mesh(8)
     src_v, src_c = make_interval_mesh(8)
-    F = psfi.ImpulseResponseField(tgt_v, tgt_c,
-                                  source_vertices=src_v, source_cells=src_c)
+    F = ep.ImpulseResponseField(tgt_v, tgt_c,
+                                source_vertices=src_v, source_cells=src_c)
 
     a, b, c = 2.0, 3.0, -1.0
     psi = a + b * tgt_v[:, 0] + c * tgt_v[:, 1]  # affine: CG1-exact
@@ -44,8 +44,8 @@ def test_cross_domain_shapes_and_closed_form():
     assert F.sample_mu.shape == (1, 2)
     assert F.sample_Sigma.shape == (1, 2, 2)
 
-    cfg = psfi.EvalConfig(frame=psfi.Frame.mean_translation, scaling=psfi.Scaling.volume,
-                          support=psfi.Support.none, num_neighbors=1)
+    cfg = ep.EvalConfig(frame=ep.Frame.mean_translation, scaling=ep.Scaling.volume,
+                        support=ep.Support.none, num_neighbors=1)
     x = np.array([0.55])
     mu_x = mu_map(x[0])
     y = mu_x + np.array([0.04, -0.03])
@@ -55,7 +55,7 @@ def test_cross_domain_shapes_and_closed_form():
     expected = (1.0 + 0.5 * x[0]) * (a + b * z[0] + c * z[1])
     assert np.isclose(vals[0], expected, rtol=1e-12)
 
-    K = psfi.KernelEvaluator(F, config=cfg)
+    K = ep.KernelEvaluator(F, config=cfg)
     assert K.dim_source == 1 and K.dim_target == 2
     assert np.isclose(K(y, x), expected, rtol=1e-12)
     B = K.block(np.array([[0.5, 0.5], [0.55, 0.45]]), np.array([[0.4], [0.6]]))
@@ -65,12 +65,12 @@ def test_cross_domain_shapes_and_closed_form():
 def test_cross_domain_restrictions():
     F, _, _ = build_cross_field()
     with pytest.raises(ValueError, match="equal source and target dimensions"):
-        F.validate(psfi.EvalConfig(frame=psfi.Frame.translation, scaling=psfi.Scaling.none,
-                                   support=psfi.Support.none))
-    cfg = psfi.EvalConfig(frame=psfi.Frame.mean_translation, scaling=psfi.Scaling.volume,
-                          support=psfi.Support.none)
+        F.validate(ep.EvalConfig(frame=ep.Frame.translation, scaling=ep.Scaling.none,
+                                 support=ep.Support.none))
+    cfg = ep.EvalConfig(frame=ep.Frame.mean_translation, scaling=ep.Scaling.volume,
+                        support=ep.Support.none)
     with pytest.raises(ValueError, match="symmetric mode"):
-        psfi.KernelEvaluator(F, F, cfg)
+        ep.KernelEvaluator(F, F, cfg)
     with pytest.raises(ValueError, match="both source_vertices and source_cells"):
         tgt_v, tgt_c = make_grid_mesh(4)
-        psfi.ImpulseResponseField(tgt_v, tgt_c, source_vertices=np.zeros((3, 1)))
+        ep.ImpulseResponseField(tgt_v, tgt_c, source_vertices=np.zeros((3, 1)))

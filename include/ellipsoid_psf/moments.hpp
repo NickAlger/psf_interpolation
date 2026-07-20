@@ -1,12 +1,12 @@
 #pragma once
 // SPDX-License-Identifier: MIT
-// Part of psfi — https://github.com/NickAlger/psf_interpolation
+// Part of ellipsoid_psf — https://github.com/NickAlger/ellipsoid_psf
 
 /// @file
 /// @brief Moment-data hygiene: eigenvalue clamping for covariance data
 /// corrupted by numerical error.
 ///
-/// psfi requires strictly positive definite covariances, both per-sample
+/// ellipsoid_psf requires strictly positive definite covariances, both per-sample
 /// (add_batch) and per-vertex (set_moment_fields). For the vertex field this
 /// is sufficient everywhere: the minimum eigenvalue is concave over symmetric
 /// matrices, so a CG1 (barycentric) interpolation of SPD vertex matrices
@@ -33,28 +33,28 @@
 
 #include <Eigen/Dense>
 
-namespace psfi {
+namespace ellipsoid_psf {
 
 /// Symmetrizes Sigma and clamps its eigenvalues to at least `floor` (> 0
-/// required, so the result passes psfi's positive-definiteness validation).
+/// required, so the result passes ellipsoid_psf's positive-definiteness validation).
 /// If no eigenvalue is below the floor, the symmetrized input is returned
 /// unchanged (no eigenvector reconstruction, no rounding).
 inline Eigen::MatrixXd clamp_spd( const Eigen::Ref<const Eigen::MatrixXd>& Sigma, double floor )
 {
     if ( !( floor > 0.0 ) )
     {
-        throw std::invalid_argument("psfi::clamp_spd: floor must be > 0 (clamped covariances must "
+        throw std::invalid_argument("ellipsoid_psf::clamp_spd: floor must be > 0 (clamped covariances must "
                                     "be strictly positive definite)");
     }
     if ( Sigma.rows() != Sigma.cols() )
     {
-        throw std::invalid_argument("psfi::clamp_spd: Sigma must be square");
+        throw std::invalid_argument("ellipsoid_psf::clamp_spd: Sigma must be square");
     }
     Eigen::MatrixXd S = 0.5 * ( Sigma + Sigma.transpose() );
     Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> es(S);
     if ( es.info() != Eigen::Success )
     {
-        throw std::runtime_error("psfi::clamp_spd: eigendecomposition failed");
+        throw std::runtime_error("ellipsoid_psf::clamp_spd: eigendecomposition failed");
     }
     if ( es.eigenvalues().minCoeff() >= floor )
     {
@@ -78,11 +78,11 @@ clamp_spd_field( const Eigen::Ref<const Eigen::MatrixXd>& Sigma_flat,
     const int n = static_cast<int>(Sigma_flat.cols());
     if ( dim < 1 || Sigma_flat.rows() != dim * dim )
     {
-        throw std::invalid_argument("psfi::clamp_spd_field: Sigma_flat must have dim*dim rows");
+        throw std::invalid_argument("ellipsoid_psf::clamp_spd_field: Sigma_flat must have dim*dim rows");
     }
     if ( floors.size() != n )
     {
-        throw std::invalid_argument("psfi::clamp_spd_field: floors must have one entry per column");
+        throw std::invalid_argument("ellipsoid_psf::clamp_spd_field: floors must have one entry per column");
     }
 
     Eigen::MatrixXd out(dim * dim, n);
@@ -91,7 +91,7 @@ clamp_spd_field( const Eigen::Ref<const Eigen::MatrixXd>& Sigma_flat,
     {
         if ( !( floors(v) > 0.0 ) )
         {
-            throw std::invalid_argument("psfi::clamp_spd_field: floors must be > 0 (entry "
+            throw std::invalid_argument("ellipsoid_psf::clamp_spd_field: floors must be > 0 (entry "
                                         + std::to_string(v) + ")");
         }
         const Eigen::Map<const Eigen::MatrixXd> S(Sigma_flat.col(v).data(), dim, dim);
@@ -99,7 +99,7 @@ clamp_spd_field( const Eigen::Ref<const Eigen::MatrixXd>& Sigma_flat,
         Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> es(S_sym);
         if ( es.info() != Eigen::Success )
         {
-            throw std::runtime_error("psfi::clamp_spd_field: eigendecomposition failed at entry "
+            throw std::runtime_error("ellipsoid_psf::clamp_spd_field: eigendecomposition failed at entry "
                                      + std::to_string(v));
         }
         if ( es.eigenvalues().minCoeff() >= floors(v) )
@@ -125,4 +125,4 @@ clamp_spd_field( const Eigen::Ref<const Eigen::MatrixXd>& Sigma_flat, int dim, d
                            Eigen::VectorXd::Constant(Sigma_flat.cols(), floor));
 }
 
-} // end namespace psfi
+} // end namespace ellipsoid_psf

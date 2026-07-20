@@ -1,6 +1,6 @@
 #pragma once
 // SPDX-License-Identifier: MIT
-// Part of psfi — https://github.com/NickAlger/psf_interpolation
+// Part of ellipsoid_psf — https://github.com/NickAlger/ellipsoid_psf
 
 /// @file
 /// @brief Evaluation configuration: the three independent axes (frame map,
@@ -19,7 +19,7 @@
 /// additionally deforms each impulse response so its support ellipsoid maps
 /// onto the ellipsoid at x.
 
-namespace psfi {
+namespace ellipsoid_psf {
 
 /// Frame map T_i: how a stored impulse response at x_i is transported to the
 /// query point x. Here mu(x), Sigma(x) are the moment fields evaluated at x
@@ -83,4 +83,4 @@ struct EvalConfig
     int     num_neighbors = 10;  ///< number of nearby sample points contributing predictions
 };
 
-} // end namespace psfi
+} // end namespace ellipsoid_psf

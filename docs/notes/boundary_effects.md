@@ -2,13 +2,13 @@
 
 Status: recorded 2026-07-19 while building the low-rank compression tests.
 Boundary artifacts have been a recurring source of error across this line of
-work; this note pins down one specific mechanism now observable in psfi, so
+work; this note pins down one specific mechanism now observable in ellipsoid_psf, so
 it can be thought through properly later.
 
 ## The mechanism
 
 When a prediction transports an evaluation point with the frame map,
-`T_i(y)` can land outside the target mesh. psfi then applies two different
+`T_i(y)` can land outside the target mesh. ellipsoid_psf then applies two different
 rules (see `config.hpp` and `ImpulseResponseField::predictions`):
 
 - **Gated** (`Support::ellipsoid`, `T_i(y)` outside the ellipsoid `E_i`):
@@ -55,10 +55,10 @@ routines are the guard rail that makes this visible.
 ## Related boundary artifacts (context)
 
 This is one member of a family. Two others recur in applications of this
-method and are handled upstream of psfi: impulse responses truncated by the
+method and are handled upstream of ellipsoid_psf: impulse responses truncated by the
 domain boundary corrupt moment estimates (means pulled inward, covariances
 shrunk along the boundary normal), and near-boundary batch functions carry
-mass the Dirac-comb model attributes incorrectly. psfi assumes clean
+mass the Dirac-comb model attributes incorrectly. ellipsoid_psf assumes clean
 moments at data entry; those corrections stay in consuming projects.
 
 ## To think through later

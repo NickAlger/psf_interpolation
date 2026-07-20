@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-add_executable(psfi_tests
+add_executable(ellipsoid_psf_tests
     test_main.cpp
     test_impulse_response_field.cpp
     test_dimensions.cpp
@@ -12,8 +12,8 @@ add_executable(psfi_tests
     test_rbf.cpp
     test_kernel_evaluator.cpp
     test_kernel_low_rank.cpp)
-target_link_libraries(psfi_tests PRIVATE psfi::psfi)
-target_include_directories(psfi_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty)
-target_compile_options(psfi_tests PRIVATE
+target_link_libraries(ellipsoid_psf_tests PRIVATE ellipsoid_psf::ellipsoid_psf)
+target_include_directories(ellipsoid_psf_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty)
+target_compile_options(ellipsoid_psf_tests PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall;-Wextra>)
-add_test(NAME psfi_tests COMMAND psfi_tests)
+add_test(NAME ellipsoid_psf_tests COMMAND ellipsoid_psf_tests)

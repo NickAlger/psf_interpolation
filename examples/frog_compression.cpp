@@ -4,7 +4,7 @@
 // [frog kernel example](frog_kernel.md) is turned into compressed matrix
 // formats. Sources and targets are both the mesh vertices, so the object
 // being compressed is the (num_vertices x num_vertices) kernel matrix of
-// the psfi evaluator itself — the reference everything is compared against.
+// the ellipsoid_psf evaluator itself — the reference everything is compared against.
 // (If the impulse batches came from forward applies of an operator A, the
 // compressed matrix's `apply` approximates A in the nodal kernel sense and
 // `applyT` approximates A^T; mass matrices stay with the consumer,
@@ -43,10 +43,10 @@
 
 #include "etree/etree.hpp"
 #include "etree/plot2d.hpp"
-#include "psfi/psfi.hpp"
+#include "ellipsoid_psf/ellipsoid_psf.hpp"
 
 using namespace etree;
-using namespace psfi;
+using namespace ellipsoid_psf;
 
 namespace {
 

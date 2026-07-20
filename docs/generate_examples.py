@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-"""Generate example-based documentation for psfi.
+"""Generate example-based documentation for ellipsoid_psf.
 
 For every program in examples/, this script runs the built executable in a
 scratch directory, captures its stdout and any figures it writes, copies the
@@ -97,7 +97,7 @@ def main() -> int:
     IMG_DIR.mkdir(parents=True, exist_ok=True)
 
     names = sorted(p.stem for p in EXAMPLES_DIR.glob("*.cpp"))
-    index_lines = ["# psfi examples", "",
+    index_lines = ["# ellipsoid_psf examples", "",
                    "Each page shows a complete program, its actual output, and the "
                    "figures it draws — all regenerated from the code by "
                    "`docs/generate_examples.py`.", ""]
@@ -105,7 +105,7 @@ def main() -> int:
     for name in names:
         exe = build_dir / "examples" / name
         if not exe.exists():
-            sys.exit(f"missing executable {exe}; build with -DPSFI_BUILD_EXAMPLES=ON first")
+            sys.exit(f"missing executable {exe}; build with -DELLIPSOID_PSF_BUILD_EXAMPLES=ON first")
         source = (EXAMPLES_DIR / f"{name}.cpp").read_text()
         title, intro, body = split_intro(source)
 

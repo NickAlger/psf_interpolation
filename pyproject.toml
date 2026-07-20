@@ -4,10 +4,10 @@ requires = ["scikit-build-core>=0.10", "pybind11>=2.12"]
 build-backend = "scikit_build_core.build"
 
 [project]
-# Distribution (PyPI) name — matches the repo. The import name is `psfi`.
-name = "psf-interpolation"
+# Distribution (PyPI) name — matches the repo. The import name is `ellipsoid_psf`.
+name = "ellipsoid-psf"
 version = "0.1.0"
-description = "Point spread function interpolation: evaluate an integral kernel anywhere from sampled impulse response batches (header-only C++ core with Python bindings)"
+description = "Point spread function interpolation with ellipsoidal support: evaluate and compress an integral kernel anywhere from sampled impulse response batches (header-only C++ core with Python bindings)"
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [{ name = "Nick Alger" }]
@@ -27,15 +27,15 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/NickAlger/psf_interpolation"
-Repository = "https://github.com/NickAlger/psf_interpolation"
+Homepage = "https://github.com/NickAlger/ellipsoid_psf"
+Repository = "https://github.com/NickAlger/ellipsoid_psf"
 
 [tool.scikit-build]
 cmake.version = ">=3.16"
 
 [tool.scikit-build.cmake.define]
-PSFI_BUILD_PYTHON = "ON"
-PSFI_BUILD_TESTS = "OFF"
+ELLIPSOID_PSF_BUILD_PYTHON = "ON"
+ELLIPSOID_PSF_BUILD_TESTS = "OFF"
 
 [tool.cibuildwheel]
 # CPython 3.9-3.13. Skip musllinux (Alpine), 32-bit, and PyPy for v0.1.

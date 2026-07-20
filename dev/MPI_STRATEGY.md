@@ -24,20 +24,20 @@ and the two scatters); this note is about *what the library should own*.
 4. **Data staging & solver integration** — mesh distribution, halo
    assembly (batches and moments come from the consumer's operator applies
    on the consumer's dof layout), and everything downstream of the matvec.
-   Cannot live in psfi without psfi becoming a framework.
+   Cannot live in ellipsoid_psf without ellipsoid_psf becoming a framework.
 
 ## Options considered
 
 - **A. Fully MPI-free library + recipes** (status quo). No new
   dependency, no mpirun CI; but every consumer rewrites ~200 lines of
   scatter-derivation glue — which is layer 2, the proven bug generator.
-- **B. Optional psfi/mpi.hpp with a turnkey DistributedBlockLowRank.**
-  Turn-key for frameworkless consumers, but psfi takes on communicator
+- **B. Optional ellipsoid_psf/mpi.hpp with a turnkey DistributedBlockLowRank.**
+  Turn-key for frameworkless consumers, but ellipsoid_psf takes on communicator
   lifecycle + MPI CI, must parameterize the distributed vector layout
   (the consumer's dof ordering) anyway, and the consumers we actually
   have would bypass its matvec for their own MatShell. High cost, low
   uptake.
-- **C. Transport-agnostic ScatterPlan: psfi owns layer 2, MPI-free.**
+- **C. Transport-agnostic ScatterPlan: ellipsoid_psf owns layer 2, MPI-free.**
   Computed from plain data (block id arrays + ownership map): per-peer
   send/receive index lists for both directions, insert-vs-accumulate
   semantics, the zero-before-accumulate invariant, and the local
@@ -47,14 +47,14 @@ and the two scatters); this note is about *what the library should own*.
   WITHOUT MPI — N simulated ranks in one process, memcpy transport,
   assert distributed apply == serial apply bitwise; the whole class of
   historical scatter bugs becomes an ordinary unit test in ordinary CI.
-- **D. psfi orchestrates distributed construction end to end.** Rejected:
+- **D. ellipsoid_psf orchestrates distributed construction end to end.** Rejected:
   halo assembly requires knowing where mesh/batches/fields come from —
   the consumer's solver stack.
 
 ## Recommendation (Claude's, pending Nick)
 
 **C layered on A; B kept open but not promised; D never.** Principle:
-psfi owns everything that is deterministic integer/linear-algebra logic
+ellipsoid_psf owns everything that is deterministic integer/linear-algebra logic
 and nothing that touches a communicator. The future distributed-enablement
 phase, all MPI-free and serial-CI-testable:
 
@@ -78,7 +78,7 @@ phase, all MPI-free and serial-CI-testable:
 Distributed construction needs nothing beyond the global-id affordance
 (embarrassingly parallel given consumer-staged halos — the library's
 long-standing locality contract). Distributed GLR/eigensolves stay
-downstream. If a frameworkless consumer materializes, psfi/mpi.hpp
+downstream. If a frameworkless consumer materializes, ellipsoid_psf/mpi.hpp
 becomes ~150 lines of plan execution over already-tested logic; the
 mpi4py route may serve that niche better anyway (plan arrays are already
 Python-visible through the bindings layer).

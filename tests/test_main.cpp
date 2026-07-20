@@ -3,4 +3,4 @@
 #include "doctest/doctest.h"
 
 // Compile-check the umbrella header.
-#include "psfi/psfi.hpp"
+#include "ellipsoid_psf/ellipsoid_psf.hpp"

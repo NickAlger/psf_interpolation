@@ -1,6 +1,6 @@
 #pragma once
 // SPDX-License-Identifier: MIT
-// Part of psfi — https://github.com/NickAlger/psf_interpolation
+// Part of ellipsoid_psf — https://github.com/NickAlger/ellipsoid_psf
 
 /// @file
 /// @brief ImpulseResponseField: batches of sampled impulse responses on a
@@ -64,9 +64,9 @@
 #include "etree/kd_tree.hpp"
 #include "etree/simplex_mesh.hpp"
 
-#include "psfi/config.hpp"
+#include "ellipsoid_psf/config.hpp"
 
-namespace psfi {
+namespace ellipsoid_psf {
 
 /// One neighbor's prediction of the kernel value at (y, x): sample x_i
 /// predicts f_i = s_i * phi_i(T_i(y)). The RBF layer interpolates the pairs
@@ -212,17 +212,17 @@ public:
         const int dt = dim_target_;
         if ( V.size() != 0 && V.size() != nv )
         {
-            throw std::invalid_argument("psfi::ImpulseResponseField::set_moment_fields: V must have "
+            throw std::invalid_argument("ellipsoid_psf::ImpulseResponseField::set_moment_fields: V must have "
                                         "one entry per source vertex (or size zero)");
         }
         if ( mu.cols() != 0 && ( mu.rows() != dt || mu.cols() != nv ) )
         {
-            throw std::invalid_argument("psfi::ImpulseResponseField::set_moment_fields: mu must have "
+            throw std::invalid_argument("ellipsoid_psf::ImpulseResponseField::set_moment_fields: mu must have "
                                         "shape (dim_target, num_source_vertices) (or be empty)");
         }
         if ( Sigma.cols() != 0 && ( Sigma.rows() != dt * dt || Sigma.cols() != nv ) )
         {
-            throw std::invalid_argument("psfi::ImpulseResponseField::set_moment_fields: Sigma must have "
+            throw std::invalid_argument("ellipsoid_psf::ImpulseResponseField::set_moment_fields: Sigma must have "
                                         "shape (dim_target^2, num_source_vertices) (or be empty)");
         }
 
@@ -252,7 +252,7 @@ public:
             if ( !bad.empty() )
             {
                 std::ostringstream message;
-                message << "psfi::ImpulseResponseField::set_moment_fields: Sigma is not positive "
+                message << "ellipsoid_psf::ImpulseResponseField::set_moment_fields: Sigma is not positive "
                         << "definite at " << bad.size() << " vertex(es):";
                 for ( size_t ii = 0; ii < bad.size() && ii < 10; ++ii )
                 {
@@ -262,7 +262,7 @@ public:
                 {
                     message << " ... and " << ( bad.size() - 10 ) << " more";
                 }
-                message << ". Clean the field first — see psfi::clamp_spd_field; a floor of the "
+                message << ". Clean the field first — see ellipsoid_psf::clamp_spd_field; a floor of the "
                         << "local mesh spacing squared is a reasonable choice.";
                 throw std::invalid_argument(message.str());
             }
@@ -295,12 +295,12 @@ public:
         const int dt = dim_target_;
         if ( points.rows() != dim_source_ || nb < 1 )
         {
-            throw std::invalid_argument("psfi::ImpulseResponseField::add_batch: points must have shape "
+            throw std::invalid_argument("ellipsoid_psf::ImpulseResponseField::add_batch: points must have shape "
                                         "(dim_source, num_batch_points) with at least one point");
         }
         if ( psi.size() != num_target_vertices() )
         {
-            throw std::invalid_argument("psfi::ImpulseResponseField::add_batch: psi must have one entry "
+            throw std::invalid_argument("ellipsoid_psf::ImpulseResponseField::add_batch: psi must have one entry "
                                         "per target-mesh vertex");
         }
         const bool have_V     = ( V.size() > 0 );
@@ -308,17 +308,17 @@ public:
         const bool have_Sigma = !Sigma.empty();
         if ( have_V && V.size() != nb )
         {
-            throw std::invalid_argument("psfi::ImpulseResponseField::add_batch: V must have one entry "
+            throw std::invalid_argument("ellipsoid_psf::ImpulseResponseField::add_batch: V must have one entry "
                                         "per batch point (or size zero)");
         }
         if ( have_mu && ( mu.rows() != dt || mu.cols() != nb ) )
         {
-            throw std::invalid_argument("psfi::ImpulseResponseField::add_batch: mu must have shape "
+            throw std::invalid_argument("ellipsoid_psf::ImpulseResponseField::add_batch: mu must have shape "
                                         "(dim_target, num_batch_points) (or be empty)");
         }
         if ( have_Sigma && static_cast<int>(Sigma.size()) != nb )
         {
-            throw std::invalid_argument("psfi::ImpulseResponseField::add_batch: Sigma must have one "
+            throw std::invalid_argument("ellipsoid_psf::ImpulseResponseField::add_batch: Sigma must have one "
                                         "matrix per batch point (or be empty)");
         }
         if ( num_batches() == 0 )
@@ -329,7 +329,7 @@ public:
         }
         else if ( have_V != has_sample_V_ || have_mu != has_sample_mu_ || have_Sigma != has_sample_Sigma_ )
         {
-            throw std::invalid_argument("psfi::ImpulseResponseField::add_batch: all batches must supply "
+            throw std::invalid_argument("ellipsoid_psf::ImpulseResponseField::add_batch: all batches must supply "
                                         "the same set of per-sample moments (V/mu/Sigma) as the first batch");
         }
 
@@ -344,7 +344,7 @@ public:
             {
                 if ( Sigma[ii].rows() != dt || Sigma[ii].cols() != dt )
                 {
-                    throw std::invalid_argument("psfi::ImpulseResponseField::add_batch: Sigma["
+                    throw std::invalid_argument("ellipsoid_psf::ImpulseResponseField::add_batch: Sigma["
                                                 + std::to_string(ii) + "] must be "
                                                 "(dim_target, dim_target)");
                 }
@@ -352,9 +352,9 @@ public:
                 Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> es(S);
                 if ( es.info() != Eigen::Success || es.eigenvalues().minCoeff() <= 0.0 )
                 {
-                    throw std::invalid_argument("psfi::ImpulseResponseField::add_batch: Sigma["
+                    throw std::invalid_argument("ellipsoid_psf::ImpulseResponseField::add_batch: Sigma["
                                                 + std::to_string(ii) + "] is not positive definite "
-                                                "(clean sample covariances first; see psfi::clamp_spd)");
+                                                "(clean sample covariances first; see ellipsoid_psf::clamp_spd)");
                 }
                 Sigma_sym .push_back(std::move(S));
                 Sigma_inv .push_back(es.operatorInverseSqrt() * es.operatorInverseSqrt());
@@ -477,7 +477,7 @@ public:
 
         if ( !missing.empty() )
         {
-            std::string message = "psfi::ImpulseResponseField::validate: this configuration requires:";
+            std::string message = "ellipsoid_psf::ImpulseResponseField::validate: this configuration requires:";
             for ( const std::string& mm : missing )
             {
                 message += "\n  - " + mm;
@@ -503,7 +503,7 @@ public:
     {
         if ( y.size() != dim_target_ || x.size() != dim_source_ )
         {
-            throw std::invalid_argument("psfi::ImpulseResponseField::predictions: y must have length "
+            throw std::invalid_argument("ellipsoid_psf::ImpulseResponseField::predictions: y must have length "
                                         "dim_target and x length dim_source");
         }
         if ( num_sample_points() == 0 )
@@ -513,7 +513,7 @@ public:
         validate(config);
         if ( kdtree_dirty_ )
         {
-            throw std::logic_error("psfi::ImpulseResponseField::predictions: kd-tree is stale; call "
+            throw std::logic_error("ellipsoid_psf::ImpulseResponseField::predictions: kd-tree is stale; call "
                                    "rebuild_kdtree() after add_batch(..., rebuild=false)");
         }
 
@@ -684,7 +684,7 @@ public:
     {
         if ( yy.rows() != dim_target_ || x.size() != dim_source_ )
         {
-            throw std::invalid_argument("psfi::ImpulseResponseField::predictions_over_targets: yy "
+            throw std::invalid_argument("ellipsoid_psf::ImpulseResponseField::predictions_over_targets: yy "
                                         "must have dim_target rows and x length dim_source");
         }
         const int ny = static_cast<int>(yy.cols());
@@ -699,7 +699,7 @@ public:
         validate(config);
         if ( kdtree_dirty_ )
         {
-            throw std::logic_error("psfi::ImpulseResponseField::predictions_over_targets: kd-tree "
+            throw std::logic_error("ellipsoid_psf::ImpulseResponseField::predictions_over_targets: kd-tree "
                                    "is stale; call rebuild_kdtree() after add_batch(..., "
                                    "rebuild=false)");
         }
@@ -878,12 +878,12 @@ public:
     {
         if ( x.size() != dim_source_ )
         {
-            throw std::invalid_argument("psfi::ImpulseResponseField::support_ellipsoids: x must "
+            throw std::invalid_argument("ellipsoid_psf::ImpulseResponseField::support_ellipsoids: x must "
                                         "have length dim_source");
         }
         if ( config.support != Support::ellipsoid )
         {
-            throw std::invalid_argument("psfi::ImpulseResponseField::support_ellipsoids: the "
+            throw std::invalid_argument("ellipsoid_psf::ImpulseResponseField::support_ellipsoids: the "
                                         "predictions have compact support only under "
                                         "Support::ellipsoid");
         }
@@ -894,7 +894,7 @@ public:
         }
         if ( kdtree_dirty_ )
         {
-            throw std::logic_error("psfi::ImpulseResponseField::support_ellipsoids: kd-tree is "
+            throw std::logic_error("ellipsoid_psf::ImpulseResponseField::support_ellipsoids: kd-tree is "
                                    "stale; call rebuild_kdtree() after add_batch(..., "
                                    "rebuild=false)");
         }
@@ -1031,4 +1031,4 @@ private:
     bool          kdtree_dirty_ = false;
 };
 
-} // end namespace psfi
+} // end namespace ellipsoid_psf

@@ -49,10 +49,10 @@ jobs:
           python3 -m pip install numpy scipy pytest
       - name: Configure
         run: >
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DPSFI_BUILD_PYTHON=ON
-          -DPSFI_BUILD_TESTS=OFF
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DELLIPSOID_PSF_BUILD_PYTHON=ON
+          -DELLIPSOID_PSF_BUILD_TESTS=OFF
       - name: Build
-        run: cmake --build build -j $(nproc) --target psfi_python
+        run: cmake --build build -j $(nproc) --target ellipsoid_psf_python
       - name: Test
         run: PYTHONPATH=build/bindings python3 -m pytest bindings/tests -q
 
@@ -80,16 +80,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: psfi.hpp version matches pyproject.toml
+      - name: ellipsoid_psf.hpp version matches pyproject.toml
         run: |
           python3 - <<'PY'
           import re, sys, tomllib
-          hpp = open("include/psfi/psfi.hpp").read()
-          def macro(tag): return re.search(rf"PSFI_VERSION_{tag} (\d+)", hpp).group(1)
+          hpp = open("include/ellipsoid_psf/ellipsoid_psf.hpp").read()
+          def macro(tag): return re.search(rf"ELLIPSOID_PSF_VERSION_{tag} (\d+)", hpp).group(1)
           header = f"{macro('MAJOR')}.{macro('MINOR')}.{macro('PATCH')}"
           pyproj = tomllib.load(open("pyproject.toml", "rb"))["project"]["version"]
-          print(f"psfi.hpp={header}  pyproject.toml={pyproj}")
+          print(f"ellipsoid_psf.hpp={header}  pyproject.toml={pyproj}")
           if pyproj != header:
-              sys.exit(f"version mismatch: psfi.hpp={header}, pyproject.toml={pyproj}")
+              sys.exit(f"version mismatch: ellipsoid_psf.hpp={header}, pyproject.toml={pyproj}")
           print("versions consistent")
           PY

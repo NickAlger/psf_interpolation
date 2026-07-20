@@ -1,6 +1,6 @@
-# Distributed block low rank: the design psfi is shaped for
+# Distributed block low rank: the design ellipsoid_psf is shaped for
 
-Status: design note — psfi contains no MPI code, and by design will contain
+Status: design note — ellipsoid_psf contains no MPI code, and by design will contain
 at most a thin optional layer. But the `BlockLowRank` format was shaped so
 that distributing it is wiring, not redesign. This note records the
 mapping.

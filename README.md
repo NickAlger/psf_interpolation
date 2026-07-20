@@ -1,10 +1,14 @@
-# psfi
+# ellipsoid_psf
 
 **Point spread function interpolation.** Evaluate an integral kernel
 Φ(y, x) at arbitrary points by interpolating *transported* impulse responses
-sampled at scattered locations — the kernel-approximation core of the
-PSF method of [Alger, Hartland, Petra, Ghattas, SISC 2024](https://doi.org/10.1137/23M1584745).
-Header-only C++17 with Python bindings; depends on Eigen and
+sampled at scattered locations, each supported within an ellipsoid — the
+kernel-approximation core of the PSF method of
+[Alger, Hartland, Petra, Ghattas, SISC 2024](https://doi.org/10.1137/23M1584745).
+The evaluated kernel then compresses to a **block low rank** matrix whose
+block sparsity follows exactly from the support ellipsoids, giving
+`apply`/`applyT` matvecs for the probed operator. Header-only C++17 with
+Python bindings; depends on Eigen and
 [etree](https://github.com/NickAlger/ellipsoid_tree).
 
 > **Status: work in progress.** The full evaluation pipeline is implemented
@@ -114,7 +118,7 @@ data entry (`add_batch` for per-sample Σ_i, `set_moment_fields` for the
 vertex Σ field). Vertex-level validation is enough for the whole domain:
 λ_min is concave, so every CG1-interpolated Σ(x) inherits positive
 definiteness from the cell's vertices. Fields corrupted by numerical error
-are repaired with `psfi.clamp_spd` (eigenvalue flooring; scalar or
+are repaired with `ellipsoid_psf.clamp_spd` (eigenvalue flooring; scalar or
 per-vertex floors). Choosing the floor is a modelling decision, not just
 hygiene — a *near*-singular Σ passes validation but amplifies through
 Σ(x)^{−1/2} and det Σ(x); the square of the local mesh spacing is a
@@ -125,26 +129,26 @@ which drives the kernel to zero continuously under the `volume` scalings.
 ## Quick look (Python)
 
 ```python
-import numpy as np, psfi
+import numpy as np, ellipsoid_psf as ep
 
-F = psfi.ImpulseResponseField(vertices, cells)   # (nv, d), (nc, d+1); points are rows
-F.set_moment_fields(V, mu, Sigma)                # (nv,), (nv, d), (nv, d, d)
-F.add_batch(points, psi, V_i, mu_i, Sigma_i)     # one Dirac-comb response per batch
+F = ep.ImpulseResponseField(vertices, cells)   # (nv, d), (nc, d+1); points are rows
+F.set_moment_fields(V, mu, Sigma)              # (nv,), (nv, d), (nv, d, d)
+F.add_batch(points, psi, V_i, mu_i, Sigma_i)   # one Dirac-comb response per batch
 
-cfg = psfi.EvalConfig(frame=psfi.Frame.whitened_affine,
-                      scaling=psfi.Scaling.volume_det,
-                      tau=3.0, num_neighbors=10)
+cfg = ep.EvalConfig(frame=ep.Frame.whitened_affine,
+                    scaling=ep.Scaling.volume_det,
+                    tau=3.0, num_neighbors=10)
 indices, points, values = F.predictions(y, x, cfg)   # per-neighbor predictions at (y, x)
 
-K = psfi.KernelEvaluator(F, config=cfg,
-                         rbf=psfi.RBFScheme(kernel=psfi.RBFKernel.gaussian, shape=3.0))
+K = ep.KernelEvaluator(F, config=cfg,
+                       rbf=ep.RBFScheme(kernel=ep.RBFKernel.gaussian, shape=3.0))
 value = K(y, x)         # one kernel entry
 A = K.block(yy, xx)     # (num_y, num_x) block, threaded
 
-parts = psfi.recursive_bisection_partition(xx, 200)          # source subdomains
-B = psfi.block_low_rank(K, yy, xx, parts, rtol=1e-3).matrix  # BRLR format
-v = B.apply(u[:, None])[:, 0]                                # ~ operator apply
-G = psfi.randomized_svd(B, max_rank=200)                     # global low rank from B
+parts = ep.recursive_bisection_partition(xx, 200)          # source subdomains
+B = ep.block_low_rank(K, yy, xx, parts, rtol=1e-3).matrix  # BRLR format
+v = B.apply(u[:, None])[:, 0]                              # ~ operator apply
+G = ep.randomized_svd(B, max_rank=200)                     # global low rank from B
 ```
 
 ## Building and testing
@@ -158,22 +162,22 @@ cmake -S . -B build && cmake --build build -j 4 && ctest --test-dir build
 etree is found via `find_package(etree)`, with a pinned FetchContent download
 as fallback (for local development against a checkout:
 `-DFETCHCONTENT_SOURCE_DIR_ETREE=/path/to/ellipsoid_tree`). Python module:
-`pip install .`, or `cmake -B build -DPSFI_BUILD_PYTHON=ON` and use
+`pip install .`, or `cmake -B build -DELLIPSOID_PSF_BUILD_PYTHON=ON` and use
 `build/bindings`. Binding tests (`bindings/tests`) check the C++ against a
 pure-numpy reference implementation over every configuration axis.
 
 ## Compile time and memory
 
-psfi is header-only and includes Eigen (via etree), so every translation
-unit that includes a psfi header pays the full template-instantiation cost —
-and psfi is substantially heavier than a bare Eigen include, because the
+ellipsoid_psf is header-only and includes Eigen (via etree), so every translation
+unit that includes a ellipsoid_psf header pays the full template-instantiation cost —
+and ellipsoid_psf is substantially heavier than a bare Eigen include, because the
 library's concrete inline function bodies (among them the SVD/QR
 factorizations of the low-rank layer) are compiled in every such TU.
 Measured on an ordinary 8-core laptop with g++: a file including the
-`psfi/psfi.hpp` umbrella costs roughly **50 s and 1.5 GB of RAM** to
+`ellipsoid_psf/ellipsoid_psf.hpp` umbrella costs roughly **50 s and 1.5 GB of RAM** to
 compile (`-O0` is no cheaper — the cost is front-end instantiation, not
 optimization). Including only the headers you use roughly halves that
-(`psfi/kernel_evaluator.hpp` alone: ~23 s, ~1.0 GB).
+(`ellipsoid_psf/kernel_evaluator.hpp` alone: ~23 s, ~1.0 GB).
 
 The practical consequence: **on a memory-limited machine, do not
 over-parallelize the build.** Concurrent compile jobs each hold their peak

@@ -12,9 +12,9 @@
 
 #include <Eigen/Dense>
 
-#include "psfi/psfi.hpp"
+#include "ellipsoid_psf/ellipsoid_psf.hpp"
 
-using namespace psfi;
+using namespace ellipsoid_psf;
 
 namespace {
 

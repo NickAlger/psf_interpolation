@@ -13,7 +13,7 @@ deliberately ignore — a-priori moments are never perfect.
 
 The pipeline: support ellipsoids from the moment formulas -> greedy
 non-overlapping batch picking (etree) -> impulse response batches ->
-kernel evaluation anywhere by transported-impulse interpolation (psfi).
+kernel evaluation anywhere by transported-impulse interpolation (ellipsoid_psf).
 The figures walk through it: the first five batches with their support
 ellipsoids and the two target points (red); the sample points, with the
 ones actually used to interpolate at the targets in black and the rest in
@@ -101,10 +101,10 @@ and the effect disappears by 10 batches.
 
 #include "etree/etree.hpp"
 #include "etree/plot2d.hpp"
-#include "psfi/psfi.hpp"
+#include "ellipsoid_psf/ellipsoid_psf.hpp"
 
 using namespace etree;
-using namespace psfi;
+using namespace ellipsoid_psf;
 
 namespace {
 

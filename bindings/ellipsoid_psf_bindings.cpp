@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
-// Part of psfi — https://github.com/NickAlger/psf_interpolation
+// Part of ellipsoid_psf — https://github.com/NickAlger/ellipsoid_psf
 //
 // Python bindings. Array-layout convention at the Python boundary: POINTS ARE
 // ROWS, matching numpy/scipy practice (and the etree bindings) — point sets
 // are (n, d), mesh vertices (num_vertices, d), mesh cells (num_cells, d+1),
-// covariance stacks (n, d, d). Internally psfi stores points as columns; the
+// covariance stacks (n, d, d). Internally ellipsoid_psf stores points as columns; the
 // transpose happens here, once, at the boundary.
 
 #include <optional>
@@ -17,11 +17,11 @@
 #include <pybind11/functional.h>
 #include <pybind11/stl.h>
 
-#include "psfi/psfi.hpp"
+#include "ellipsoid_psf/ellipsoid_psf.hpp"
 
 namespace py = pybind11;
 using namespace pybind11::literals;
-using namespace psfi;
+using namespace ellipsoid_psf;
 
 namespace {
 
@@ -191,16 +191,17 @@ const char* kernel_name( RBFKernel k )
 
 } // end anonymous namespace
 
-PYBIND11_MODULE(psfi, m)
+PYBIND11_MODULE(ellipsoid_psf, m)
 {
-    m.doc() = "psfi: point spread function interpolation — evaluate an integral kernel\n"
-              "Phi(y, x) anywhere by interpolating transported impulse responses sampled\n"
-              "at scattered points.\n\n"
+    m.doc() = "ellipsoid_psf: point spread function interpolation with ellipsoidal\n"
+              "support — evaluate an integral kernel Phi(y, x) anywhere by interpolating\n"
+              "transported impulse responses sampled at scattered points, each supported\n"
+              "within an ellipsoid.\n\n"
               "Array convention: points are rows — point sets are (n, d), mesh vertices\n"
               "(num_vertices, d), mesh cells (num_cells, d+1), covariance stacks (n, d, d).";
-    m.attr("__version__") = py::str(std::to_string(PSFI_VERSION_MAJOR) + "."
-                                    + std::to_string(PSFI_VERSION_MINOR) + "."
-                                    + std::to_string(PSFI_VERSION_PATCH));
+    m.attr("__version__") = py::str(std::to_string(ELLIPSOID_PSF_VERSION_MAJOR) + "."
+                                    + std::to_string(ELLIPSOID_PSF_VERSION_MINOR) + "."
+                                    + std::to_string(ELLIPSOID_PSF_VERSION_PATCH));
 
     py::enum_<Frame>(m, "Frame",
         "Frame map T_i transporting a stored impulse response at x_i to the query point x.")
@@ -465,7 +466,7 @@ PYBIND11_MODULE(psfi, m)
     const char* clamp_spd_doc =
         "Symmetrize a covariance stack (n, d, d) and clamp its eigenvalues to at\n"
         "least `floor` (> 0; scalar or per-entry array of shape (n,)). Returns\n"
-        "(cleaned_stack, modified_indices). psfi requires strictly positive\n"
+        "(cleaned_stack, modified_indices). ellipsoid_psf requires strictly positive\n"
         "definite covariances (add_batch and set_moment_fields validate); use this\n"
         "to repair fields corrupted by numerical error. The floor is a modelling\n"
         "choice, not just hygiene — near-singular covariances pass validation but\n"

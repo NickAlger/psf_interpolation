@@ -4,9 +4,9 @@
 import numpy as np
 import pytest
 
-import psfi
+import ellipsoid_psf as ep
 
-from test_psfi_py import make_grid_mesh
+from test_ellipsoid_psf_py import make_grid_mesh
 
 
 def make_moment_field():
@@ -14,7 +14,7 @@ def make_moment_field():
     # data; the Sigma field varies with position.
     vertices, cells = make_grid_mesh(8)
     nv = vertices.shape[0]
-    F = psfi.ImpulseResponseField(vertices, cells, batches_normalized=False)
+    F = ep.ImpulseResponseField(vertices, cells, batches_normalized=False)
     offset = np.array([0.02, -0.01])
     pts = np.array([[0.25, 0.30], [0.60, 0.35], [0.40, 0.60],
                     [0.70, 0.70], [0.30, 0.75], [0.55, 0.55]])
@@ -35,30 +35,30 @@ def make_moment_field():
 
 
 def gated_config(frame, num_neighbors=3, tau=2.0):
-    return psfi.EvalConfig(frame=frame, scaling=psfi.Scaling.none,
-                           support=psfi.Support.ellipsoid, tau=tau,
-                           num_neighbors=num_neighbors)
+    return ep.EvalConfig(frame=frame, scaling=ep.Scaling.none,
+                         support=ep.Support.ellipsoid, tau=tau,
+                         num_neighbors=num_neighbors)
 
 
 def test_recursive_bisection_partition():
     rng = np.random.default_rng(0)
     pts = rng.uniform(size=(100, 2))
-    parts = psfi.recursive_bisection_partition(pts, 30)
+    parts = ep.recursive_bisection_partition(pts, 30)
     assert len(parts) == 4  # 100 -> 50 -> 25
     flat = sorted(i for part in parts for i in part)
     assert flat == list(range(100))
     for part in parts:
         assert len(part) <= 30
         assert part == sorted(part)
-    assert psfi.recursive_bisection_partition(pts, 30) == parts
-    assert len(psfi.recursive_bisection_partition(pts, 100)) == 1
+    assert ep.recursive_bisection_partition(pts, 30) == parts
+    assert len(ep.recursive_bisection_partition(pts, 100)) == 1
     with pytest.raises(ValueError):
-        psfi.recursive_bisection_partition(pts, 0)
+        ep.recursive_bisection_partition(pts, 0)
 
 
 def test_support_ellipsoids_invariant():
     F, _ = make_moment_field()
-    cfg = gated_config(psfi.Frame.mean_translation)
+    cfg = gated_config(ep.Frame.mean_translation)
     ys = np.array([[x, y] for y in np.linspace(0, 1, 9) for x in np.linspace(0, 1, 9)])
 
     outside_checked = 0
@@ -78,20 +78,20 @@ def test_support_ellipsoids_invariant():
     # Support.none has no compact support.
     with pytest.raises(ValueError):
         F.support_ellipsoids(np.array([0.5, 0.5]),
-                             psfi.EvalConfig(frame=psfi.Frame.translation,
-                                             scaling=psfi.Scaling.none,
-                                             support=psfi.Support.none))
+                             ep.EvalConfig(frame=ep.Frame.translation,
+                                           scaling=ep.Scaling.none,
+                                           support=ep.Support.none))
 
 
 def test_block_target_sets_invariant():
     F, vertices = make_moment_field()
-    cfg = gated_config(psfi.Frame.whitened_affine)
-    K = psfi.KernelEvaluator(F, config=cfg)
+    cfg = gated_config(ep.Frame.whitened_affine)
+    K = ep.KernelEvaluator(F, config=cfg)
 
     xs = np.linspace(0.15, 0.85, 4)
     xx = np.array([[a, b] for b in xs for a in xs])
-    partition = psfi.recursive_bisection_partition(xx, 4)
-    sets = psfi.block_target_sets(K, vertices, xx, partition)
+    partition = ep.recursive_bisection_partition(xx, 4)
+    sets = ep.block_target_sets(K, vertices, xx, partition)
     assert len(sets) == len(partition)
 
     B = K.block(vertices, xx)
@@ -108,6 +108,6 @@ def test_block_target_sets_invariant():
     # source_support requires symmetric mode.
     with pytest.raises(Exception):
         K.source_support(np.array([0.5, 0.5]))
-    K_sym = psfi.KernelEvaluator(F, F, config=cfg)
+    K_sym = ep.KernelEvaluator(F, F, config=cfg)
     centers_s, _ = K_sym.source_support(np.array([0.5, 0.5]))
     assert centers_s.shape[0] == 1

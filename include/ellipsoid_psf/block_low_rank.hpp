@@ -1,6 +1,6 @@
 #pragma once
 // SPDX-License-Identifier: MIT
-// Part of psfi — https://github.com/NickAlger/psf_interpolation
+// Part of ellipsoid_psf — https://github.com/NickAlger/ellipsoid_psf
 
 /// @file
 /// @brief BlockLowRank: the source-partitioned compressed kernel format
@@ -46,12 +46,12 @@
 
 #include "etree/detail/parallel_for.hpp"
 
-#include "psfi/kernel_evaluator.hpp"
-#include "psfi/kernel_low_rank.hpp"
-#include "psfi/low_rank.hpp"
-#include "psfi/partition.hpp"
+#include "ellipsoid_psf/kernel_evaluator.hpp"
+#include "ellipsoid_psf/kernel_low_rank.hpp"
+#include "ellipsoid_psf/low_rank.hpp"
+#include "ellipsoid_psf/partition.hpp"
 
-namespace psfi {
+namespace ellipsoid_psf {
 
 /// The source-partitioned compressed kernel matrix. Sources not covered by
 /// any block correspond to identically-zero kernel columns; targets not in
@@ -97,13 +97,13 @@ public:
     {
         if ( num_sources_ < 0 || num_targets_ < 0 )
         {
-            throw std::invalid_argument("psfi::BlockLowRank: axis sizes must be >= 0");
+            throw std::invalid_argument("ellipsoid_psf::BlockLowRank: axis sizes must be >= 0");
         }
         std::vector<bool> source_seen(num_sources_, false);
         for ( size_t bb = 0; bb < blocks_.size(); ++bb )
         {
             const Block& blk = blocks_[bb];
-            const std::string where = "psfi::BlockLowRank: block " + std::to_string(bb);
+            const std::string where = "ellipsoid_psf::BlockLowRank: block " + std::to_string(bb);
             for ( int jj : blk.source_ids )
             {
                 if ( jj < 0 || jj >= num_sources_ )
@@ -181,7 +181,7 @@ public:
     {
         if ( U.rows() != num_sources_ )
         {
-            throw std::invalid_argument("psfi::BlockLowRank::apply: input must have num_sources "
+            throw std::invalid_argument("ellipsoid_psf::BlockLowRank::apply: input must have num_sources "
                                         "rows");
         }
         Eigen::MatrixXd out = Eigen::MatrixXd::Zero(num_targets_, U.cols());
@@ -216,7 +216,7 @@ public:
     {
         if ( V.rows() != num_targets_ )
         {
-            throw std::invalid_argument("psfi::BlockLowRank::applyT: input must have num_targets "
+            throw std::invalid_argument("ellipsoid_psf::BlockLowRank::applyT: input must have num_targets "
                                         "rows");
         }
         Eigen::MatrixXd out = Eigen::MatrixXd::Zero(num_sources_, V.cols());
@@ -312,12 +312,12 @@ block_low_rank( const KernelEvaluator& kernel,
 {
     if ( yy.rows() != kernel.dim_target() || xx.rows() != kernel.dim_source() )
     {
-        throw std::invalid_argument("psfi::block_low_rank: yy must have dim_target rows and xx "
+        throw std::invalid_argument("ellipsoid_psf::block_low_rank: yy must have dim_target rows and xx "
                                     "dim_source rows (points are columns)");
     }
     if ( !( rtol >= 0.0 ) )
     {
-        throw std::invalid_argument("psfi::block_low_rank: rtol must be >= 0");
+        throw std::invalid_argument("ellipsoid_psf::block_low_rank: rtol must be >= 0");
     }
     const int num_targets = static_cast<int>(yy.cols());
     const int num_sources = static_cast<int>(xx.cols());
@@ -465,4 +465,4 @@ inline LowRank randomized_svd( const BlockLowRank& B,
                           max_rank, options);
 }
 
-} // end namespace psfi
+} // end namespace ellipsoid_psf

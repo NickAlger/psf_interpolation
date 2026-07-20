@@ -5,9 +5,9 @@
 import numpy as np
 import pytest
 
-import psfi
+import ellipsoid_psf as ep
 
-from test_psfi_partition_py import make_moment_field, gated_config
+from test_ellipsoid_psf_partition_py import make_moment_field, gated_config
 
 
 def test_rbf_functional_matches_interpolate():
@@ -15,17 +15,17 @@ def test_rbf_functional_matches_interpolate():
     centers = rng.uniform(-1, 1, size=(7, 2))
     values = rng.uniform(-1, 1, size=7)
     p = np.array([0.13, -0.07])
-    scheme = psfi.RBFScheme()
-    lam = psfi.rbf_functional(centers, p, scheme)
+    scheme = ep.RBFScheme()
+    lam = ep.rbf_functional(centers, p, scheme)
     assert lam.shape == (7,)
     assert np.isclose(lam @ values,
-                      psfi.rbf_interpolate(values, centers, p[None, :], scheme)[0],
+                      ep.rbf_interpolate(values, centers, p[None, :], scheme)[0],
                       rtol=1e-9, atol=1e-12)
 
 
 def test_predictions_over_targets_matches_per_pair():
     F, vertices = make_moment_field()
-    cfg = gated_config(psfi.Frame.mean_translation)
+    cfg = gated_config(ep.Frame.mean_translation)
     yy = np.array([[x, y] for y in np.linspace(0, 1, 6) for x in np.linspace(0, 1, 6)])
     x = np.array([0.45, 0.55])
 
@@ -41,8 +41,8 @@ def test_predictions_over_targets_matches_per_pair():
 
 def test_block_matches_entrywise():
     F, vertices = make_moment_field()
-    cfg = gated_config(psfi.Frame.whitened_affine)
-    K = psfi.KernelEvaluator(F, config=cfg)
+    cfg = gated_config(ep.Frame.whitened_affine)
+    K = ep.KernelEvaluator(F, config=cfg)
     yy = np.array([[x, y] for y in np.linspace(0, 1, 5) for x in np.linspace(0, 1, 5)])
     xx = np.array([[x, y] for y in np.linspace(0.2, 0.8, 3) for x in np.linspace(0.2, 0.8, 3)])
     B = K.block(yy, xx)

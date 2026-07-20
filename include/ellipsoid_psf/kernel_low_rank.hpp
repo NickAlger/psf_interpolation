@@ -1,6 +1,6 @@
 #pragma once
 // SPDX-License-Identifier: MIT
-// Part of psfi — https://github.com/NickAlger/psf_interpolation
+// Part of ellipsoid_psf — https://github.com/NickAlger/ellipsoid_psf
 
 /// @file
 /// @brief Global low-rank approximation of the kernel matrix
@@ -35,10 +35,10 @@
 
 #include <Eigen/Dense>
 
-#include "psfi/kernel_evaluator.hpp"
-#include "psfi/low_rank.hpp"
+#include "ellipsoid_psf/kernel_evaluator.hpp"
+#include "ellipsoid_psf/low_rank.hpp"
 
-namespace psfi {
+namespace ellipsoid_psf {
 
 /// How to compress a kernel matrix (globally, or one block of a partition).
 enum class CompressionMethod
@@ -87,16 +87,16 @@ inline KernelLowRankResult kernel_low_rank( const KernelEvaluator& kernel,
 {
     if ( yy.rows() != kernel.dim_target() || xx.rows() != kernel.dim_source() )
     {
-        throw std::invalid_argument("psfi::kernel_low_rank: yy must have dim_target rows and xx "
+        throw std::invalid_argument("ellipsoid_psf::kernel_low_rank: yy must have dim_target rows and xx "
                                     "dim_source rows (points are columns)");
     }
     if ( !( rtol >= 0.0 ) )
     {
-        throw std::invalid_argument("psfi::kernel_low_rank: rtol must be >= 0");
+        throw std::invalid_argument("ellipsoid_psf::kernel_low_rank: rtol must be >= 0");
     }
     if ( options.dense_min_dim < 0 )
     {
-        throw std::invalid_argument("psfi::kernel_low_rank: dense_min_dim must be >= 0");
+        throw std::invalid_argument("ellipsoid_psf::kernel_low_rank: dense_min_dim must be >= 0");
     }
     const int num_targets = static_cast<int>(yy.cols());
     const int num_sources = static_cast<int>(xx.cols());
@@ -152,4 +152,4 @@ inline KernelLowRankResult kernel_low_rank( const KernelEvaluator& kernel,
     return result;
 }
 
-} // end namespace psfi
+} // end namespace ellipsoid_psf

@@ -1,6 +1,6 @@
 #pragma once
 // SPDX-License-Identifier: MIT
-// Part of psfi — https://github.com/NickAlger/psf_interpolation
+// Part of ellipsoid_psf — https://github.com/NickAlger/ellipsoid_psf
 
 /// @file
 /// @brief Radial basis function interpolation of scattered data, with a
@@ -31,7 +31,7 @@
 
 #include <Eigen/Dense>
 
-namespace psfi {
+namespace ellipsoid_psf {
 
 /// Radial kernel phi(u), evaluated at the locally scaled distance
 /// u = shape * r / r0. Sign conventions follow scipy.interpolate.RBFInterpolator
@@ -81,19 +81,19 @@ inline void validate( const RBFScheme& scheme )
 {
     if ( !( scheme.shape > 0.0 ) )
     {
-        throw std::invalid_argument("psfi::validate(RBFScheme): shape must be > 0");
+        throw std::invalid_argument("ellipsoid_psf::validate(RBFScheme): shape must be > 0");
     }
     if ( !( scheme.smoothing >= 0.0 ) )
     {
-        throw std::invalid_argument("psfi::validate(RBFScheme): smoothing must be >= 0");
+        throw std::invalid_argument("ellipsoid_psf::validate(RBFScheme): smoothing must be >= 0");
     }
     if ( scheme.degree < -1 || scheme.degree > 1 )
     {
-        throw std::invalid_argument("psfi::validate(RBFScheme): degree must be -1, 0, or 1");
+        throw std::invalid_argument("ellipsoid_psf::validate(RBFScheme): degree must be -1, 0, or 1");
     }
     if ( scheme.degree < rbf_min_degree(scheme.kernel) )
     {
-        throw std::invalid_argument("psfi::validate(RBFScheme): degree "
+        throw std::invalid_argument("ellipsoid_psf::validate(RBFScheme): degree "
                                     + std::to_string(scheme.degree)
                                     + " is below this kernel's minimum degree "
                                     + std::to_string(rbf_min_degree(scheme.kernel)));
@@ -233,15 +233,15 @@ inline Eigen::VectorXd rbf_interpolate( const Eigen::Ref<const Eigen::VectorXd>&
     const int m = static_cast<int>(eval_points.cols());
     if ( k < 1 )
     {
-        throw std::invalid_argument("psfi::rbf_interpolate: need at least one center");
+        throw std::invalid_argument("ellipsoid_psf::rbf_interpolate: need at least one center");
     }
     if ( values.size() != k )
     {
-        throw std::invalid_argument("psfi::rbf_interpolate: values must have one entry per center");
+        throw std::invalid_argument("ellipsoid_psf::rbf_interpolate: values must have one entry per center");
     }
     if ( eval_points.rows() != d )
     {
-        throw std::invalid_argument("psfi::rbf_interpolate: eval_points and centers must have the "
+        throw std::invalid_argument("ellipsoid_psf::rbf_interpolate: eval_points and centers must have the "
                                     "same number of rows (spatial dimension)");
     }
 
@@ -281,11 +281,11 @@ inline Eigen::VectorXd rbf_functional( const Eigen::Ref<const Eigen::MatrixXd>& 
     const int k = static_cast<int>(centers.cols());
     if ( k < 1 )
     {
-        throw std::invalid_argument("psfi::rbf_functional: need at least one center");
+        throw std::invalid_argument("ellipsoid_psf::rbf_functional: need at least one center");
     }
     if ( eval_point.size() != centers.rows() )
     {
-        throw std::invalid_argument("psfi::rbf_functional: eval_point and centers must have the "
+        throw std::invalid_argument("ellipsoid_psf::rbf_functional: eval_point and centers must have the "
                                     "same spatial dimension");
     }
 
@@ -299,4 +299,4 @@ inline Eigen::VectorXd rbf_functional( const Eigen::Ref<const Eigen::MatrixXd>& 
     return S.A.colPivHouseholderQr().solve(g).head(k);
 }
 
-} // end namespace psfi
+} // end namespace ellipsoid_psf

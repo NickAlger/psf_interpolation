@@ -4,5 +4,5 @@
 include(CMakeFindDependencyMacro)
 find_dependency(etree 0.1)
 
-include("${CMAKE_CURRENT_LIST_DIR}/psfiTargets.cmake")
-check_required_components(psfi)
+include("${CMAKE_CURRENT_LIST_DIR}/ellipsoid_psfTargets.cmake")
+check_required_components(ellipsoid_psf)

@@ -1,8 +1,17 @@
-# psfi — development notes / handoff
+# ellipsoid_psf — development notes / handoff
 
 Working notes for development. Committed during early development on purpose;
 will be cleaned up (or moved out of the repo) before release. Last updated:
-2026-07-19 (third session).
+2026-07-20 (fourth session).
+
+**Renamed 2026-07-20:** `psf_interpolation` (`psfi`) → `ellipsoid_psf`.
+The old name was too generic, and the ellipsoid — support model, transport
+map, gate, batch-packing criterion, and the exact block sparsity of the BRLR
+format — turned out to be the organizing idea. Repo, PyPI dist, import name,
+C++ namespace, and CMake package are all `ellipsoid_psf`/`ellipsoid-psf`, so
+there is no repo-name-vs-dist-name mapping to remember (unlike
+`ellipsoid_tree`/`etree`). Macros and CMake options use the
+`ELLIPSOID_PSF_` prefix.
 
 ## What this is
 
@@ -26,7 +35,7 @@ Depends on [etree](https://github.com/NickAlger/ellipsoid_tree) (same
 maintainer; geometry layer: SimplexMesh, KDTree, ellipsoids, batch picking)
 + Eigen. Infrastructure deliberately mirrors etree: header-only C++17,
 pybind11 bindings via scikit-build-core, doctest, show-don't-tell docs
-pipeline, version single-sourced in `include/psfi/psfi.hpp`.
+pipeline, version single-sourced in `include/ellipsoid_psf/ellipsoid_psf.hpp`.
 
 ## Design decisions (agreed with Nick, 2026-07-18/19)
 
@@ -91,7 +100,7 @@ Nick's verdict on gaussian_psf).
   one adapter's fixed mapping is target=rows, source=cols, matching
   `block(yy, xx)`.
 - **Support oracle pair** (drives the Omega_T,i target sets, exact w.r.t.
-  the psfi kernel because the gate makes it truly zero outside):
+  the ellipsoid_psf kernel because the gate makes it truly zero outside):
   `target_support(x)` = ellipsoids in target space outside whose union
   Phi(., x) vanishes (whitened_affine: exactly E(mu(x), Sigma(x), tau), one
   ellipsoid; other frames: k ellipsoids from the kNN samples);
@@ -101,7 +110,7 @@ Nick's verdict on gaussian_psf).
   (the row field gates on the transported x, so "x in y's ellipsoid" entries
   exist that forward ellipsoids miss). Two etree::EllipsoidTree passes.
   Support::none => full-width blocks. Block sparsity is LOSSLESS relative to
-  the psfi kernel => testable invariant (kernel == 0 outside computed sets).
+  the ellipsoid_psf kernel => testable invariant (kernel == 0 outside computed sets).
 - **Partition = plain data** (vector of source-index sets), default
   recursive coordinate bisection over source coordinates with a size cutoff;
   cutoff is an experimentation knob (GPSF's 32 is NOT a recommendation —
@@ -159,7 +168,7 @@ Nick's verdict on gaussian_psf).
 
 ## State (all pushed to main, CI fully green)
 
-- `include/psfi/`: config.hpp, impulse_response_field.hpp, moments.hpp
+- `include/ellipsoid_psf/`: config.hpp, impulse_response_field.hpp, moments.hpp
   (clamp_spd), low_rank.hpp (truncated_svd, recompress, aca, randomized_svd
   — slice 1 of the downstream-matrix work, all Frobenius-rtol, deterministic
   seeds, ACAResult diagnostics incl. hit_max_rank), kernel_low_rank.hpp
@@ -178,7 +187,7 @@ Nick's verdict on gaussian_psf).
   operator/transpose dictionary in its file header; builder with per-block
   diagnostics, parallel over blocks, per-block seeds seed+index; dense-path
   dense storage keeps the EXACT block, so rtol=0 reproduces block() bit for
-  bit); umbrella psfi.hpp with version macros (0.1.0).
+  bit); umbrella ellipsoid_psf.hpp with version macros (0.1.0).
 - Tests: 67 doctest cases / ~32.7k assertions; 105 pytest tests including a
   pure-numpy reference of the full prediction pipeline over all 48
   frame×scaling×support×normalization combos, scipy RBFInterpolator
@@ -186,9 +195,14 @@ Nick's verdict on gaussian_psf).
   scipy-checked RBF), and numpy cross-checks of the low-rank tools
   (Frobenius truncation rule recomputed independently; ACA disconnected
   block-diagonal support test).
-- Bindings: module `psfi` (dist name `psf-interpolation`, free on PyPI, NOT
+- Bindings: module `ellipsoid_psf` (dist name `ellipsoid-psf`, free on PyPI, NOT
   yet published); points-are-rows convention like etree; field holder is
-  shared_ptr (evaluators keep fields alive).
+  shared_ptr (evaluators keep fields alive). **No short alias is shipped.**
+  The natural `epsf` is taken on PyPI (an unrelated JWST "effective PSF"
+  package that also installs a top-level `epsf`), and ePSF is established
+  terminology for *effective* PSF (cf. `photutils.psf.EPSFBuilder`) — so the
+  library exposes only the full name and never asserts an abbreviation. Docs
+  and binding tests use a reader-chosen `import ellipsoid_psf as ep`.
 - Example + docs pipeline: `examples/frog_kernel.cpp` and
   `examples/frog_compression.cpp` → `docs/examples/*.md` via
   `docs/generate_examples.py` (etree-style; CI freshness-checks the
@@ -265,7 +279,7 @@ shows k=1 vs k=10 maps.
    (`docs/Doxyfile`, doxygen-awesome theme, deploy workflow). Public API
    prose already lives as `///` comments.
 2. **Release wiring**: wheels.yml (cibuildwheel + PyPI Trusted Publishing —
-   register project `psf-interpolation`), CITATION.cff, CHANGELOG.md,
+   register project `ellipsoid-psf`), CITATION.cff, CHANGELOG.md,
    version-consistency extended to CITATION.cff. Copy etree's setup; see
    ellipsoid_tree/dev/HANDOFF.md for the wiring details and the
    repo-name-vs-dist-name gotcha.
@@ -318,7 +332,7 @@ shows k=1 vs k=10 maps.
   planning number.
 - Local dev against the etree checkout:
   `cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DFETCHCONTENT_SOURCE_DIR_ETREE=$HOME/repos/ellipsoid_tree`.
-  Installed-etree route also works (`find_package`); PSFI_INSTALL requires it
+  Installed-etree route also works (`find_package`); ELLIPSOID_PSF_INSTALL requires it
   (exporting against vendored etree is a hard error by design).
 - Python on Nick's machine: use the **t3toolbox** env
   (`-DPython_EXECUTABLE=$HOME/miniconda3/envs/t3toolbox/bin/python`,
@@ -336,7 +350,7 @@ shows k=1 vs k=10 maps.
   by hand — the generator copies but never removes.
 - Claude session context for this project lives in the auto-memory of the
   `nicks_research_experiments` project
-  (`~/.claude/projects/-home-nick-repos-nicks-research-experiments/memory/psf-interpolation-package.md`),
+  (`~/.claude/projects/-home-nick-repos-nicks-research-experiments/memory/ellipsoid-psf-package.md`),
   since sessions have been run from that repo.
 
 ## Quick commands
@@ -344,7 +358,7 @@ shows k=1 vs k=10 maps.
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
       -DFETCHCONTENT_SOURCE_DIR_ETREE=$HOME/repos/ellipsoid_tree \
-      -DPSFI_BUILD_PYTHON=ON -DPython_EXECUTABLE=$HOME/miniconda3/envs/t3toolbox/bin/python
+      -DELLIPSOID_PSF_BUILD_PYTHON=ON -DPython_EXECUTABLE=$HOME/miniconda3/envs/t3toolbox/bin/python
 cmake --build build -j 3 && ctest --test-dir build   # -j 3: see the OOM gotcha
 PYTHONPATH=build/bindings ~/miniconda3/envs/t3toolbox/bin/python -m pytest bindings/tests -q
 python3 docs/generate_examples.py --build-dir build   # regenerate example docs

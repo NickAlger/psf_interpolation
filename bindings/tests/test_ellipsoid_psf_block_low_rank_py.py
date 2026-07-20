@@ -4,23 +4,23 @@
 import numpy as np
 import pytest
 
-import psfi
+import ellipsoid_psf as ep
 
-from test_psfi_partition_py import make_moment_field, gated_config
+from test_ellipsoid_psf_partition_py import make_moment_field, gated_config
 
 
-def build_problem(frame=psfi.Frame.whitened_affine):
+def build_problem(frame=ep.Frame.whitened_affine):
     F, vertices = make_moment_field()
-    K = psfi.KernelEvaluator(F, config=gated_config(frame))
+    K = ep.KernelEvaluator(F, config=gated_config(frame))
     xs = np.linspace(0.15, 0.85, 4)
     xx = np.array([[a, b] for b in xs for a in xs])
-    partition = psfi.recursive_bisection_partition(xx, 4)
+    partition = ep.recursive_bisection_partition(xx, 4)
     return K, vertices, xx, partition
 
 
 def test_exact_at_rtol_zero_and_applies():
     K, yy, xx, partition = build_problem()
-    r = psfi.block_low_rank(K, yy, xx, partition, 0.0)
+    r = ep.block_low_rank(K, yy, xx, partition, 0.0)
     assert r.all_converged and not r.any_hit_max_rank
 
     A = K.block(yy, xx)
@@ -43,43 +43,43 @@ def test_tolerance_and_diagnostics():
     A = K.block(yy, xx)
 
     rtol = 1e-2
-    r = psfi.block_low_rank(K, yy, xx, partition, rtol)
+    r = ep.block_low_rank(K, yy, xx, partition, rtol)
     assert r.all_converged
     assert np.linalg.norm(A - r.matrix.to_dense()) <= rtol * np.linalg.norm(A) * (1 + 1e-9)
     assert r.matrix.storage_entries <= A.size
     assert len(r.block_info) == len(partition)
 
-    capped = psfi.block_low_rank(K, yy, xx, partition, 1e-12,
-                                 psfi.KernelLowRankOptions(max_rank=1))
+    capped = ep.block_low_rank(K, yy, xx, partition, 1e-12,
+                               ep.KernelLowRankOptions(max_rank=1))
     assert capped.any_hit_max_rank and not capped.all_converged
 
 
 def test_brlr_to_global_low_rank():
     K, yy, xx, partition = build_problem()
-    B = psfi.block_low_rank(K, yy, xx, partition, 1e-10).matrix
+    B = ep.block_low_rank(K, yy, xx, partition, 1e-10).matrix
     D = B.to_dense()
 
-    G = psfi.randomized_svd(B, 16)  # full-width sampling: exact to rounding
+    G = ep.randomized_svd(B, 16)  # full-width sampling: exact to rounding
     assert G.U.shape == (81, 16) and G.V.shape == (16, 16)
     assert np.linalg.norm(D - G.to_dense()) <= 1e-10 * np.linalg.norm(D)
 
-    G6 = psfi.randomized_svd(B, 6, psfi.RSVDOptions(power_iterations=2))
-    best = np.linalg.norm(D - psfi.truncated_svd(D, 0.0, max_rank=6).to_dense())
+    G6 = ep.randomized_svd(B, 6, ep.RSVDOptions(power_iterations=2))
+    best = np.linalg.norm(D - ep.truncated_svd(D, 0.0, max_rank=6).to_dense())
     assert np.linalg.norm(D - G6.to_dense()) <= 10 * best + 1e-14
 
 
 def test_container_round_trip():
     K, yy, xx, partition = build_problem()
-    B = psfi.block_low_rank(K, yy, xx, partition, 1e-6).matrix
+    B = ep.block_low_rank(K, yy, xx, partition, 1e-6).matrix
 
     # Rebuild the container from its own blocks (the serialization seam).
-    rebuilt = psfi.BlockLowRank(B.num_sources, B.num_targets, list(B.blocks))
+    rebuilt = ep.BlockLowRank(B.num_sources, B.num_targets, list(B.blocks))
     assert np.array_equal(rebuilt.to_dense(), B.to_dense())
 
     # Validation: reused source ids across blocks throw.
-    blk = psfi.BlockLowRank.Block([0, 1], [0, 2], True,
-                                  np.zeros((2, 1)), np.zeros((2, 1)))
-    dup = psfi.BlockLowRank.Block([1, 2], [0, 2], True,
-                                  np.zeros((2, 1)), np.zeros((2, 1)))
+    blk = ep.BlockLowRank.Block([0, 1], [0, 2], True,
+                                np.zeros((2, 1)), np.zeros((2, 1)))
+    dup = ep.BlockLowRank.Block([1, 2], [0, 2], True,
+                                np.zeros((2, 1)), np.zeros((2, 1)))
     with pytest.raises(ValueError):
-        psfi.BlockLowRank(3, 3, [blk, dup])
+        ep.BlockLowRank(3, 3, [blk, dup])

@@ -1,6 +1,6 @@
 #pragma once
 // SPDX-License-Identifier: MIT
-// Part of psfi — https://github.com/NickAlger/psf_interpolation
+// Part of ellipsoid_psf — https://github.com/NickAlger/ellipsoid_psf
 
 /// @file
 /// @brief KernelEvaluator: the complete kernel approximation
@@ -35,11 +35,11 @@
 #include "etree/detail/parallel_for.hpp"
 #include "etree/geometry.hpp"
 
-#include "psfi/config.hpp"
-#include "psfi/impulse_response_field.hpp"
-#include "psfi/rbf.hpp"
+#include "ellipsoid_psf/config.hpp"
+#include "ellipsoid_psf/impulse_response_field.hpp"
+#include "ellipsoid_psf/rbf.hpp"
 
-namespace psfi {
+namespace ellipsoid_psf {
 
 /// Evaluates the approximate integral kernel anywhere, by RBF interpolation
 /// of the per-neighbor predictions of one (cols-only) or two (symmetric)
@@ -62,7 +62,7 @@ public:
     {
         if ( !col_field_ )
         {
-            throw std::invalid_argument("psfi::KernelEvaluator: col_field must not be null");
+            throw std::invalid_argument("ellipsoid_psf::KernelEvaluator: col_field must not be null");
         }
         validate(rbf_);
         col_field_->validate(config_);
@@ -75,7 +75,7 @@ public:
                  || row_field_->dim_target() != col_field_->dim_target()
                  || col_field_->dim_source() != col_field_->dim_target() )
             {
-                throw std::invalid_argument("psfi::KernelEvaluator: symmetric mode requires equal "
+                throw std::invalid_argument("ellipsoid_psf::KernelEvaluator: symmetric mode requires equal "
                                             "source and target dimensions across both fields (the "
                                             "forward/adjoint center pooling identifies the two "
                                             "spaces); use cols-only mode for rectangular kernels");
@@ -84,7 +84,7 @@ public:
         }
         if ( !( duplicate_tol_ >= 0.0 ) )
         {
-            throw std::invalid_argument("psfi::KernelEvaluator: duplicate_tol must be >= 0");
+            throw std::invalid_argument("ellipsoid_psf::KernelEvaluator: duplicate_tol must be >= 0");
         }
     }
 
@@ -194,7 +194,7 @@ public:
     {
         if ( yy.rows() != dim_target() || xx.rows() != dim_source() )
         {
-            throw std::invalid_argument("psfi::KernelEvaluator::block: yy must have dim_target rows "
+            throw std::invalid_argument("ellipsoid_psf::KernelEvaluator::block: yy must have dim_target rows "
                                         "and xx dim_source rows");
         }
         const int ny = static_cast<int>(yy.cols());
@@ -319,7 +319,7 @@ public:
     {
         if ( !row_field_ )
         {
-            throw std::logic_error("psfi::KernelEvaluator::source_support: requires symmetric mode "
+            throw std::logic_error("ellipsoid_psf::KernelEvaluator::source_support: requires symmetric mode "
                                    "(a row field); in cols-only mode kernel rows have no computable "
                                    "compact support");
         }
@@ -334,4 +334,4 @@ private:
     double     duplicate_tol_;
 };
 
-} // end namespace psfi
+} // end namespace ellipsoid_psf

@@ -1,4 +1,4 @@
-# psfi examples
+# ellipsoid_psf examples
 
 Each page shows a complete program, its actual output, and the figures it draws — all regenerated from the code by `docs/generate_examples.py`.
 
@@ -10,4 +10,4 @@ Each page shows a complete program, its actual output, and the figures it draws 
 Hand-written notes on behavior worth knowing about (not generated):
 
 - [Boundary effects: sample exclusion, kernel discontinuities, and compressibility](notes/boundary_effects.md)
-- [Distributed block low rank: the design psfi is shaped for](notes/distributed_design.md)
+- [Distributed block low rank: the design ellipsoid_psf is shaped for](notes/distributed_design.md)

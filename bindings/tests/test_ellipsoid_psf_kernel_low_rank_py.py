@@ -6,9 +6,9 @@
 import numpy as np
 import pytest
 
-import psfi
+import ellipsoid_psf as ep
 
-from test_psfi_py import make_grid_mesh
+from test_ellipsoid_psf_py import make_grid_mesh
 
 
 def make_kernel():
@@ -16,7 +16,7 @@ def make_kernel():
     # samples as neighbors (constant neighbor set => smooth kernel; see the
     # C++ test for why that matters for compressibility).
     vertices, cells = make_grid_mesh(8)
-    F = psfi.ImpulseResponseField(vertices, cells, batches_normalized=False)
+    F = ep.ImpulseResponseField(vertices, cells, batches_normalized=False)
     pts = np.array([[0.30, 0.40], [0.55, 0.50], [0.45, 0.65],
                     [0.62, 0.35], [0.38, 0.58]])
     for b in range(5):
@@ -24,9 +24,9 @@ def make_kernel():
         vals = np.exp(-((vertices[:, 0] - pts[b, 0]) ** 2
                         + (vertices[:, 1] - pts[b, 1]) ** 2) / w**2)
         F.add_batch(pts[b:b + 1], vals)
-    cfg = psfi.EvalConfig(frame=psfi.Frame.translation, scaling=psfi.Scaling.none,
-                          support=psfi.Support.none, num_neighbors=5)
-    return psfi.KernelEvaluator(F, config=cfg)
+    cfg = ep.EvalConfig(frame=ep.Frame.translation, scaling=ep.Scaling.none,
+                        support=ep.Support.none, num_neighbors=5)
+    return ep.KernelEvaluator(F, config=cfg)
 
 
 def window_grid(m, lo, hi):
@@ -43,8 +43,8 @@ def test_dense_svd_pathway_matches_numpy():
     A = K.block(yy, xx)
 
     rtol = 1e-2
-    options = psfi.KernelLowRankOptions(method=psfi.CompressionMethod.dense_svd)
-    r = psfi.kernel_low_rank(K, yy, xx, rtol, options)
+    options = ep.KernelLowRankOptions(method=ep.CompressionMethod.dense_svd)
+    r = ep.kernel_low_rank(K, yy, xx, rtol, options)
     assert not r.used_aca
     assert r.converged and not r.hit_max_rank
     B = r.factors.to_dense()
@@ -65,15 +65,15 @@ def test_aca_pathway_and_automatic_selection():
     A = K.block(yy, xx)
 
     rtol = 1e-4
-    r = psfi.kernel_low_rank(K, yy, xx, rtol,
-                             psfi.KernelLowRankOptions(method=psfi.CompressionMethod.aca))
+    r = ep.kernel_low_rank(K, yy, xx, rtol,
+                           ep.KernelLowRankOptions(method=ep.CompressionMethod.aca))
     assert r.used_aca and r.converged
     assert np.linalg.norm(A - r.factors.to_dense()) <= 10 * rtol * np.linalg.norm(A)
 
     # automatic: min dim 36 <= 128 -> dense; dense_min_dim = 0 -> aca.
-    assert not psfi.kernel_low_rank(K, yy, xx, rtol).used_aca
-    assert psfi.kernel_low_rank(K, yy, xx, rtol,
-                                psfi.KernelLowRankOptions(dense_min_dim=0)).used_aca
+    assert not ep.kernel_low_rank(K, yy, xx, rtol).used_aca
+    assert ep.kernel_low_rank(K, yy, xx, rtol,
+                              ep.KernelLowRankOptions(dense_min_dim=0)).used_aca
 
 
 def test_rank_cap_and_validation():
@@ -81,12 +81,12 @@ def test_rank_cap_and_validation():
     yy = window_grid(5, 0.35, 0.65)
     xx = window_grid(4, 0.40, 0.60)
 
-    r = psfi.kernel_low_rank(K, yy, xx, 1e-12,
-                             psfi.KernelLowRankOptions(max_rank=2))
+    r = ep.kernel_low_rank(K, yy, xx, 1e-12,
+                           ep.KernelLowRankOptions(max_rank=2))
     assert r.hit_max_rank and not r.converged
     assert r.factors.rank <= 2
 
     with pytest.raises(ValueError):
-        psfi.kernel_low_rank(K, yy, xx, -1.0)
+        ep.kernel_low_rank(K, yy, xx, -1.0)
     with pytest.raises(ValueError):
-        psfi.kernel_low_rank(K, np.zeros((4, 3)), xx, 1e-6)  # wrong dim
+        ep.kernel_low_rank(K, np.zeros((4, 3)), xx, 1e-6)  # wrong dim

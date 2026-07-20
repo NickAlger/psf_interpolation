@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: MIT
-# psfi binding tests: a deliberately slow, obviously-correct pure-numpy
+# ellipsoid_psf binding tests: a deliberately slow, obviously-correct pure-numpy
 # reference implementation of the prediction pipeline, compared against the
 # C++ implementation over every configuration axis, plus API behavior tests.
 
 import numpy as np
 import pytest
 
-import psfi
+import ellipsoid_psf as ep
 
 
 # ----------------------------------------------------------------------
@@ -88,7 +88,7 @@ def sym_inv_sqrt(S):
 
 def reference_predictions(data, y, x, cfg):
     """Reference for ImpulseResponseField.predictions; data is a plain dict."""
-    Frame, Scaling, Support = psfi.Frame, psfi.Scaling, psfi.Support
+    Frame, Scaling, Support = ep.Frame, ep.Scaling, ep.Support
     dim = data["vertices"].shape[1]
     m = data["sample_points"].shape[0]
     if m == 0:
@@ -190,7 +190,7 @@ def build_field(seed=0, normalized=True, with_moments=True, with_fields=True, n=
         vertices, cells = make_cube_mesh(n)
     nv = vertices.shape[0]
 
-    F = psfi.ImpulseResponseField(vertices, cells, batches_normalized=normalized)
+    F = ep.ImpulseResponseField(vertices, cells, batches_normalized=normalized)
     data = {
         "vertices": vertices,
         "cells": cells,
@@ -240,10 +240,10 @@ def build_field(seed=0, normalized=True, with_moments=True, with_fields=True, n=
 #  C++ vs reference over every configuration axis
 # ----------------------------------------------------------------------
 
-ALL_FRAMES = [psfi.Frame.identity, psfi.Frame.translation,
-              psfi.Frame.mean_translation, psfi.Frame.whitened_affine]
-ALL_SCALINGS = [psfi.Scaling.none, psfi.Scaling.volume, psfi.Scaling.volume_det]
-ALL_SUPPORTS = [psfi.Support.none, psfi.Support.ellipsoid]
+ALL_FRAMES = [ep.Frame.identity, ep.Frame.translation,
+              ep.Frame.mean_translation, ep.Frame.whitened_affine]
+ALL_SCALINGS = [ep.Scaling.none, ep.Scaling.volume, ep.Scaling.volume_det]
+ALL_SUPPORTS = [ep.Support.none, ep.Support.ellipsoid]
 
 
 @pytest.mark.parametrize("normalized", [True, False])
@@ -252,8 +252,8 @@ ALL_SUPPORTS = [psfi.Support.none, psfi.Support.ellipsoid]
 @pytest.mark.parametrize("frame", ALL_FRAMES)
 def test_predictions_match_reference(frame, scaling, support, normalized):
     F, data = build_field(seed=0, normalized=normalized)
-    cfg = psfi.EvalConfig(frame=frame, scaling=scaling, support=support,
-                          tau=2.5, num_neighbors=5)
+    cfg = ep.EvalConfig(frame=frame, scaling=scaling, support=support,
+                        tau=2.5, num_neighbors=5)
     rng = np.random.default_rng(12345)
     num_nonempty = 0
     num_gated = 0
@@ -272,7 +272,7 @@ def test_predictions_match_reference(frame, scaling, support, normalized):
             num_nonempty += int(len(got_i) > 0)
             num_gated += int(np.any(got_v == 0.0))
     assert num_nonempty >= 8  # the comparison actually exercised predictions
-    if support == psfi.Support.ellipsoid:
+    if support == ep.Support.ellipsoid:
         assert num_gated >= 1  # ... including the gate
 
 
@@ -282,17 +282,17 @@ def test_predictions_match_reference_nd(dim):
     # subset checks that nothing is secretly two-dimensional.
     F, data = build_field(seed=10 + dim, dim=dim, n=(8 if dim == 1 else 3))
     combos = [
-        (psfi.Frame.identity, psfi.Scaling.none, psfi.Support.none),
-        (psfi.Frame.translation, psfi.Scaling.none, psfi.Support.ellipsoid),
-        (psfi.Frame.mean_translation, psfi.Scaling.volume, psfi.Support.ellipsoid),
-        (psfi.Frame.whitened_affine, psfi.Scaling.volume_det, psfi.Support.ellipsoid),
-        (psfi.Frame.whitened_affine, psfi.Scaling.volume, psfi.Support.none),
+        (ep.Frame.identity, ep.Scaling.none, ep.Support.none),
+        (ep.Frame.translation, ep.Scaling.none, ep.Support.ellipsoid),
+        (ep.Frame.mean_translation, ep.Scaling.volume, ep.Support.ellipsoid),
+        (ep.Frame.whitened_affine, ep.Scaling.volume_det, ep.Support.ellipsoid),
+        (ep.Frame.whitened_affine, ep.Scaling.volume, ep.Support.none),
     ]
     rng = np.random.default_rng(77)
     num_nonempty = 0
     for frame, scaling, support in combos:
-        cfg = psfi.EvalConfig(frame=frame, scaling=scaling, support=support,
-                              tau=2.5, num_neighbors=4)
+        cfg = ep.EvalConfig(frame=frame, scaling=scaling, support=support,
+                            tau=2.5, num_neighbors=4)
         for _ in range(8):
             x = rng.uniform(0.2, 0.8, dim)
             y = x + rng.uniform(-0.2, 0.2, dim)
@@ -310,8 +310,8 @@ def test_num_neighbors_truncation():
     x = np.array([0.5, 0.5])
     y = np.array([0.52, 0.48])
     for k in [1, 3, 100]:
-        cfg = psfi.EvalConfig(frame=psfi.Frame.translation, scaling=psfi.Scaling.none,
-                              support=psfi.Support.none, num_neighbors=k)
+        cfg = ep.EvalConfig(frame=ep.Frame.translation, scaling=ep.Scaling.none,
+                            support=ep.Support.none, num_neighbors=k)
         got_i, _, _ = F.predictions(y, x, cfg)
         ref_i, _, _ = reference_predictions(data, y, x, cfg)
         assert np.array_equal(got_i, ref_i)
@@ -326,24 +326,24 @@ def test_validate_reports_missing_data():
     F, _ = build_field(seed=1, with_moments=False, with_fields=False)
 
     with pytest.raises(ValueError, match="per-sample V"):
-        F.validate(psfi.EvalConfig(frame=psfi.Frame.translation, scaling=psfi.Scaling.none,
-                                   support=psfi.Support.none))
+        F.validate(ep.EvalConfig(frame=ep.Frame.translation, scaling=ep.Scaling.none,
+                                 support=ep.Support.none))
     with pytest.raises(ValueError, match="vertex field mu"):
-        F.validate(psfi.EvalConfig(frame=psfi.Frame.mean_translation, scaling=psfi.Scaling.none,
-                                   support=psfi.Support.none))
+        F.validate(ep.EvalConfig(frame=ep.Frame.mean_translation, scaling=ep.Scaling.none,
+                                 support=ep.Support.none))
     with pytest.raises(ValueError, match="per-sample Sigma"):
-        F.validate(psfi.EvalConfig(frame=psfi.Frame.whitened_affine, scaling=psfi.Scaling.none,
-                                   support=psfi.Support.none))
+        F.validate(ep.EvalConfig(frame=ep.Frame.whitened_affine, scaling=ep.Scaling.none,
+                                 support=ep.Support.none))
     with pytest.raises(ValueError, match="vertex field V"):
-        F.validate(psfi.EvalConfig(frame=psfi.Frame.translation, scaling=psfi.Scaling.volume,
-                                   support=psfi.Support.none))
+        F.validate(ep.EvalConfig(frame=ep.Frame.translation, scaling=ep.Scaling.volume,
+                                 support=ep.Support.none))
     with pytest.raises(ValueError, match="per-sample mu"):
-        F.validate(psfi.EvalConfig(frame=psfi.Frame.translation, scaling=psfi.Scaling.none,
-                                   support=psfi.Support.ellipsoid))
+        F.validate(ep.EvalConfig(frame=ep.Frame.translation, scaling=ep.Scaling.none,
+                                 support=ep.Support.ellipsoid))
     with pytest.raises(ValueError, match="tau > 0"):
-        F.validate(psfi.EvalConfig(support=psfi.Support.ellipsoid, tau=0.0))
+        F.validate(ep.EvalConfig(support=ep.Support.ellipsoid, tau=0.0))
     with pytest.raises(ValueError, match="num_neighbors"):
-        F.validate(psfi.EvalConfig(num_neighbors=0))
+        F.validate(ep.EvalConfig(num_neighbors=0))
 
 
 def test_minimal_data_mode():
@@ -351,13 +351,13 @@ def test_minimal_data_mode():
     # no scaling, no gate. Predictions are the batch function at y.
     vertices, cells = make_grid_mesh(6)
     nv = vertices.shape[0]
-    F = psfi.ImpulseResponseField(vertices, cells, batches_normalized=False)
+    F = ep.ImpulseResponseField(vertices, cells, batches_normalized=False)
     psi = 2.0 + 3.0 * vertices[:, 0] - vertices[:, 1]  # affine: CG1-exact
     pts = np.array([[0.3, 0.4], [0.7, 0.6]])
     F.add_batch(pts, psi)
 
-    cfg = psfi.EvalConfig(frame=psfi.Frame.identity, scaling=psfi.Scaling.none,
-                          support=psfi.Support.none, num_neighbors=2)
+    cfg = ep.EvalConfig(frame=ep.Frame.identity, scaling=ep.Scaling.none,
+                        support=ep.Support.none, num_neighbors=2)
     F.validate(cfg)
     y = np.array([0.45, 0.55])
     x = np.array([0.35, 0.40])
@@ -368,14 +368,14 @@ def test_minimal_data_mode():
 
     # But volume scaling correctly complains.
     with pytest.raises(ValueError, match="per-sample V"):
-        F.validate(psfi.EvalConfig(frame=psfi.Frame.identity, scaling=psfi.Scaling.volume,
-                                   support=psfi.Support.none))
+        F.validate(ep.EvalConfig(frame=ep.Frame.identity, scaling=ep.Scaling.volume,
+                                 support=ep.Support.none))
 
 
 def test_batch_moment_consistency_enforced():
     vertices, cells = make_grid_mesh(4)
     nv = vertices.shape[0]
-    F = psfi.ImpulseResponseField(vertices, cells)
+    F = ep.ImpulseResponseField(vertices, cells)
     pts = np.array([[0.5, 0.5]])
     psi = np.zeros(nv)
     F.add_batch(pts, psi, V=np.array([1.0]))
@@ -386,7 +386,7 @@ def test_batch_moment_consistency_enforced():
 
 def test_non_spd_sigma_rejected():
     vertices, cells = make_grid_mesh(4)
-    F = psfi.ImpulseResponseField(vertices, cells)
+    F = ep.ImpulseResponseField(vertices, cells)
     pts = np.array([[0.5, 0.5]])
     psi = np.zeros(vertices.shape[0])
     bad = -np.eye(2)[None, :, :]
@@ -397,11 +397,11 @@ def test_non_spd_sigma_rejected():
 
 def test_stale_kdtree():
     vertices, cells = make_grid_mesh(4)
-    F = psfi.ImpulseResponseField(vertices, cells, batches_normalized=False)
+    F = ep.ImpulseResponseField(vertices, cells, batches_normalized=False)
     pts = np.array([[0.5, 0.5]])
     F.add_batch(pts, np.zeros(vertices.shape[0]), rebuild=False)
-    cfg = psfi.EvalConfig(frame=psfi.Frame.identity, scaling=psfi.Scaling.none,
-                          support=psfi.Support.none)
+    cfg = ep.EvalConfig(frame=ep.Frame.identity, scaling=ep.Scaling.none,
+                        support=ep.Support.none)
     p = np.array([0.5, 0.5])
     with pytest.raises(RuntimeError, match="kd-tree is stale"):
         F.predictions(p, p, cfg)
@@ -416,14 +416,14 @@ def test_x_outside_mesh():
     x_out = np.array([1.5, 0.5])
 
     # Field lookups needed at x: uninformed, empty result.
-    cfg = psfi.EvalConfig(frame=psfi.Frame.mean_translation, scaling=psfi.Scaling.volume,
-                          support=psfi.Support.none)
+    cfg = ep.EvalConfig(frame=ep.Frame.mean_translation, scaling=ep.Scaling.volume,
+                        support=ep.Support.none)
     got_i, _, _ = F.predictions(y, x_out, cfg)
     assert len(got_i) == 0
 
     # No field lookups: exterior x fine (matches the reference).
-    cfg = psfi.EvalConfig(frame=psfi.Frame.identity, scaling=psfi.Scaling.none,
-                          support=psfi.Support.none)
+    cfg = ep.EvalConfig(frame=ep.Frame.identity, scaling=ep.Scaling.none,
+                        support=ep.Support.none)
     got_i, _, got_v = F.predictions(y, x_out, cfg)
     ref_i, _, ref_v = reference_predictions(data, y, x_out, cfg)
     assert np.array_equal(got_i, ref_i)
@@ -454,6 +454,6 @@ def test_introspection_roundtrip():
     assert np.array_equal(F.target_mesh_cells, data["cells"])
     assert np.allclose(F.source_mesh_vertices, data["vertices"])  # square case
 
-    assert isinstance(psfi.__version__, str)
-    r = repr(psfi.EvalConfig())
+    assert isinstance(ep.__version__, str)
+    r = repr(ep.EvalConfig())
     assert "mean_translation" in r and "volume" in r

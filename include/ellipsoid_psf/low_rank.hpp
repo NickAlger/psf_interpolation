@@ -1,6 +1,6 @@
 #pragma once
 // SPDX-License-Identifier: MIT
-// Part of psfi — https://github.com/NickAlger/psf_interpolation
+// Part of ellipsoid_psf — https://github.com/NickAlger/ellipsoid_psf
 
 /// @file
 /// @brief Generic low-rank matrix tools: Frobenius-truncated SVD, adaptive
@@ -34,7 +34,7 @@
 
 #include <Eigen/Dense>
 
-namespace psfi {
+namespace ellipsoid_psf {
 
 /// A rank-r factorization A ~ U V^T with U (num_rows, r) and V (num_cols, r).
 /// Scale (e.g. singular values) is folded into U; V has orthonormal columns
@@ -92,7 +92,7 @@ inline LowRank truncated_svd( const Eigen::Ref<const Eigen::MatrixXd>& A,
 {
     if ( !( rtol >= 0.0 ) )
     {
-        throw std::invalid_argument("psfi::truncated_svd: rtol must be >= 0");
+        throw std::invalid_argument("ellipsoid_psf::truncated_svd: rtol must be >= 0");
     }
     const int m = static_cast<int>(A.rows());
     const int n = static_cast<int>(A.cols());
@@ -197,24 +197,24 @@ inline ACAResult aca( const std::function<Eigen::VectorXd(int)>& get_row,
 {
     if ( !get_row || !get_col )
     {
-        throw std::invalid_argument("psfi::aca: get_row and get_col must be callable");
+        throw std::invalid_argument("ellipsoid_psf::aca: get_row and get_col must be callable");
     }
     if ( num_rows < 0 || num_cols < 0 )
     {
-        throw std::invalid_argument("psfi::aca: num_rows and num_cols must be >= 0");
+        throw std::invalid_argument("ellipsoid_psf::aca: num_rows and num_cols must be >= 0");
     }
     if ( !( rtol >= 0.0 ) )
     {
-        throw std::invalid_argument("psfi::aca: rtol must be >= 0");
+        throw std::invalid_argument("ellipsoid_psf::aca: rtol must be >= 0");
     }
     if ( !( options.aca_safety_factor > 0.0 && options.aca_safety_factor <= 1.0 )
          || !( options.recompress_safety_factor > 0.0 && options.recompress_safety_factor <= 1.0 ) )
     {
-        throw std::invalid_argument("psfi::aca: safety factors must be in (0, 1]");
+        throw std::invalid_argument("ellipsoid_psf::aca: safety factors must be in (0, 1]");
     }
     if ( options.required_consecutive_successes < 1 )
     {
-        throw std::invalid_argument("psfi::aca: required_consecutive_successes must be >= 1");
+        throw std::invalid_argument("ellipsoid_psf::aca: required_consecutive_successes must be >= 1");
     }
 
     ACAResult result;
@@ -243,7 +243,7 @@ inline ACAResult aca( const std::function<Eigen::VectorXd(int)>& get_row,
                 return ii;
             }
         }
-        throw std::logic_error("psfi::aca: internal error, no candidate rows left");
+        throw std::logic_error("ellipsoid_psf::aca: internal error, no candidate rows left");
     };
 
     std::vector<Eigen::VectorXd> uu; // residual columns (crosses' left vectors)
@@ -254,7 +254,7 @@ inline ACAResult aca( const std::function<Eigen::VectorXd(int)>& get_row,
         Eigen::VectorXd s = get(index);
         if ( s.size() != expected )
         {
-            throw std::invalid_argument(std::string("psfi::aca: ") + what + "(" + std::to_string(index)
+            throw std::invalid_argument(std::string("ellipsoid_psf::aca: ") + what + "(" + std::to_string(index)
                                         + ") returned length " + std::to_string(s.size())
                                         + ", expected " + std::to_string(expected));
         }
@@ -382,7 +382,7 @@ inline ACAResult aca( const std::function<Eigen::VectorXd(int)>& get_row,
     result.factors = LowRank{ std::move(U), std::move(V) };
     if ( options.recompress && result.sampled_rank > 0 )
     {
-        result.factors = psfi::recompress(result.factors, options.recompress_safety_factor * rtol);
+        result.factors = ellipsoid_psf::recompress(result.factors, options.recompress_safety_factor * rtol);
     }
     return result;
 }
@@ -413,19 +413,19 @@ inline LowRank randomized_svd(
 {
     if ( !apply || !apply_transpose )
     {
-        throw std::invalid_argument("psfi::randomized_svd: apply and apply_transpose must be callable");
+        throw std::invalid_argument("ellipsoid_psf::randomized_svd: apply and apply_transpose must be callable");
     }
     if ( num_rows < 0 || num_cols < 0 )
     {
-        throw std::invalid_argument("psfi::randomized_svd: num_rows and num_cols must be >= 0");
+        throw std::invalid_argument("ellipsoid_psf::randomized_svd: num_rows and num_cols must be >= 0");
     }
     if ( max_rank < 1 )
     {
-        throw std::invalid_argument("psfi::randomized_svd: max_rank must be >= 1");
+        throw std::invalid_argument("ellipsoid_psf::randomized_svd: max_rank must be >= 1");
     }
     if ( options.oversampling < 0 || options.power_iterations < 0 || !( options.rtol >= 0.0 ) )
     {
-        throw std::invalid_argument("psfi::randomized_svd: oversampling and power_iterations must be "
+        throw std::invalid_argument("ellipsoid_psf::randomized_svd: oversampling and power_iterations must be "
                                     ">= 0 and rtol >= 0");
     }
     if ( num_rows == 0 || num_cols == 0 )
@@ -450,7 +450,7 @@ inline LowRank randomized_svd(
     {
         if ( M.rows() != rows || M.cols() != cols )
         {
-            throw std::invalid_argument(std::string("psfi::randomized_svd: ") + what + " returned shape ("
+            throw std::invalid_argument(std::string("ellipsoid_psf::randomized_svd: ") + what + " returned shape ("
                                         + std::to_string(M.rows()) + ", " + std::to_string(M.cols())
                                         + "), expected (" + std::to_string(rows) + ", "
                                         + std::to_string(cols) + ")");
@@ -473,4 +473,4 @@ inline LowRank randomized_svd(
     return LowRank{ Q * core.U, core.V };
 }
 
-} // end namespace psfi
+} // end namespace ellipsoid_psf

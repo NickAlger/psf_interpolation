@@ -1,6 +1,6 @@
 #pragma once
 // SPDX-License-Identifier: MIT
-// Part of psfi — https://github.com/NickAlger/psf_interpolation
+// Part of ellipsoid_psf — https://github.com/NickAlger/ellipsoid_psf
 
 /// @file
 /// @brief Source-domain partitioning and per-block target sets — the
@@ -34,9 +34,9 @@
 #include "etree/geometry.hpp"
 #include "etree/object_tree.hpp"
 
-#include "psfi/kernel_evaluator.hpp"
+#include "ellipsoid_psf/kernel_evaluator.hpp"
 
-namespace psfi {
+namespace ellipsoid_psf {
 
 namespace detail {
 
@@ -85,7 +85,7 @@ recursive_bisection_partition( const Eigen::Ref<const Eigen::MatrixXd>& points,
 {
     if ( max_part_size < 1 )
     {
-        throw std::invalid_argument("psfi::recursive_bisection_partition: max_part_size must be "
+        throw std::invalid_argument("ellipsoid_psf::recursive_bisection_partition: max_part_size must be "
                                     ">= 1");
     }
     const int n = static_cast<int>(points.cols());
@@ -95,7 +95,7 @@ recursive_bisection_partition( const Eigen::Ref<const Eigen::MatrixXd>& points,
     }
     if ( points.rows() < 1 )
     {
-        throw std::invalid_argument("psfi::recursive_bisection_partition: points must have at "
+        throw std::invalid_argument("ellipsoid_psf::recursive_bisection_partition: points must have at "
                                     "least one row (the spatial dimension)");
     }
     std::vector<int> inds(n);
@@ -128,7 +128,7 @@ block_target_sets( const KernelEvaluator& kernel,
 {
     if ( yy.rows() != kernel.dim_target() || xx.rows() != kernel.dim_source() )
     {
-        throw std::invalid_argument("psfi::block_target_sets: yy must have dim_target rows and xx "
+        throw std::invalid_argument("ellipsoid_psf::block_target_sets: yy must have dim_target rows and xx "
                                     "dim_source rows (points are columns)");
     }
     const int num_targets = static_cast<int>(yy.cols());
@@ -142,7 +142,7 @@ block_target_sets( const KernelEvaluator& kernel,
         {
             if ( jj < 0 || jj >= num_sources )
             {
-                throw std::invalid_argument("psfi::block_target_sets: partition index "
+                throw std::invalid_argument("ellipsoid_psf::block_target_sets: partition index "
                                             + std::to_string(jj) + " is out of range");
             }
             part_of_source[jj] = pp;
@@ -266,4 +266,4 @@ block_target_sets( const KernelEvaluator& kernel,
     return out;
 }
 
-} // end namespace psfi
+} // end namespace ellipsoid_psf

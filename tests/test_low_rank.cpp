@@ -9,9 +9,9 @@
 
 #include <Eigen/Dense>
 
-#include "psfi/low_rank.hpp"
+#include "ellipsoid_psf/low_rank.hpp"
 
-using namespace psfi;
+using namespace ellipsoid_psf;
 
 namespace {
 

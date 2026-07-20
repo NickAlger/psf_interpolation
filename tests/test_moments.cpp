@@ -6,9 +6,9 @@
 
 #include <Eigen/Dense>
 
-#include "psfi/moments.hpp"
+#include "ellipsoid_psf/moments.hpp"
 
-using namespace psfi;
+using namespace ellipsoid_psf;
 
 namespace {
 
