@@ -13,6 +13,9 @@ Header-only C++17 with Python bindings; depends on Eigen and
 > the RBF layer (six kernels, polynomial tails, ridge smoothing;
 > cross-checked against scipy's `RBFInterpolator`), and the threaded
 > `KernelEvaluator` (cols-only and symmetric), with an end-to-end worked
+> example — plus the downstream compressed matrix formats: global low rank
+> (truncated SVD / ACA / randomized SVD) and the source-partitioned block
+> low rank format with its `apply`/`applyT` matvecs, with a second worked
 > example. API docs and the PyPI release are still to come.
 
 <p align="center">
@@ -86,6 +89,26 @@ each source point to where its impulse response lands, which is what makes
 requires the single-domain case. By default source = target and nothing
 distinguishes the two roles.
 
+**Compressed matrix formats** turn the evaluated kernel into operators.
+The kernel matrix over given target/source points can be assembled dense
+(`KernelEvaluator.block`), compressed globally
+(`kernel_low_rank`: truncated SVD or adaptive cross approximation), or —
+the production format — compressed as **block low rank** (`block_low_rank`):
+the source axis is partitioned into spatially coherent subdomains, each
+block couples its sources to the target set where its kernel columns can be
+nonzero (computed *exactly* from the support-ellipsoid gate, so the block
+sparsity is lossless and all error is per-block truncation), and each block
+stores factors or the verbatim dense block, whichever is smaller.
+`BlockLowRank.apply` integrates against the source axis and `applyT` is the
+transpose action; if the impulse batches came from forward applies of an
+operator A, `apply` approximates A in the nodal kernel sense and `applyT`
+approximates Aᵀ (mass matrices stay with the consumer, A = M Φ M — paper
+eq. 3.5). A global low rank can then be recovered from the block applies
+alone (`randomized_svd`). See the
+[compression example](docs/examples/frog_compression.md) for the whole
+pipeline on the frog kernel, and `docs/notes/` for boundary effects and the
+distributed-format design.
+
 **Covariances must be strictly positive definite**, and this is enforced at
 data entry (`add_batch` for per-sample Σ_i, `set_moment_fields` for the
 vertex Σ field). Vertex-level validation is enough for the whole domain:
@@ -116,7 +139,12 @@ indices, points, values = F.predictions(y, x, cfg)   # per-neighbor predictions 
 K = psfi.KernelEvaluator(F, config=cfg,
                          rbf=psfi.RBFScheme(kernel=psfi.RBFKernel.gaussian, shape=3.0))
 value = K(y, x)         # one kernel entry
-B = K.block(yy, xx)     # (num_y, num_x) block, threaded
+A = K.block(yy, xx)     # (num_y, num_x) block, threaded
+
+parts = psfi.recursive_bisection_partition(xx, 200)          # source subdomains
+B = psfi.block_low_rank(K, yy, xx, parts, rtol=1e-3).matrix  # BRLR format
+v = B.apply(u[:, None])[:, 0]                                # ~ operator apply
+G = psfi.randomized_svd(B, max_rank=200)                     # global low rank from B
 ```
 
 ## Building and testing

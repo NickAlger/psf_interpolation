@@ -179,7 +179,7 @@ Nick's verdict on gaussian_psf).
   diagnostics, parallel over blocks, per-block seeds seed+index; dense-path
   dense storage keeps the EXACT block, so rtol=0 reproduces block() bit for
   bit); umbrella psfi.hpp with version macros (0.1.0).
-- Tests: 62 doctest cases / 988 assertions; 101 pytest tests including a
+- Tests: 67 doctest cases / ~32.7k assertions; 105 pytest tests including a
   pure-numpy reference of the full prediction pipeline over all 48
   frame×scaling×support×normalization combos, scipy RBFInterpolator
   cross-checks, an evaluator reference (prediction reference + merge +
@@ -189,9 +189,14 @@ Nick's verdict on gaussian_psf).
 - Bindings: module `psfi` (dist name `psf-interpolation`, free on PyPI, NOT
   yet published); points-are-rows convention like etree; field holder is
   shared_ptr (evaluators keep fields alive).
-- Example + docs pipeline: `examples/frog_kernel.cpp` →
-  `docs/examples/frog_kernel.md` via `docs/generate_examples.py`
-  (etree-style; CI freshness-checks the markdown, figures exempt).
+- Example + docs pipeline: `examples/frog_kernel.cpp` and
+  `examples/frog_compression.cpp` → `docs/examples/*.md` via
+  `docs/generate_examples.py` (etree-style; CI freshness-checks the
+  markdown incl. per-figure `<stem>.caption.md` captions, figure bytes
+  exempt; the generator also emits a Notes index from `docs/notes/*.md` —
+  never hand-edit docs/README.md). Field figures carry viridis colorbars
+  drawn from Plot2D primitives (lifting into etree is parked in etree's
+  local handoff).
   Headline result: on the rotating frog kernel, whitened_affine+volume_det
   beats the paper config at every stage (median col err 0.267/0.061/0.036 vs
   0.384/0.114/0.046 at 1/5/10 batches, k=10).
@@ -247,10 +252,12 @@ shows k=1 vs k=10 maps.
 
 ## Remaining work (rough order)
 
-0. **Downstream-matrix slices 2-7** (see the design section above): global
-   low rank from the evaluator; partition + support oracles; BlockLowRank
-   container/builder; BRLR->GLR; docs example + MPI notes; column-major eval
-   (absorbs old item 5 below).
+0. **Downstream-matrix phase: COMPLETE** (all 7 slices, see the design
+   section above). What remains from that thread is step (4) of the
+   original plan — MPI-distributed BRLR — strategy discussion with Nick
+   in progress (2026-07-19, end of third session); the container already
+   maps 1:1 onto the R_a/C_a scatter design
+   (docs/notes/distributed_design.md).
 1. **API docs**: Doxygen + GitHub Pages, mirroring etree
    (`docs/Doxyfile`, doxygen-awesome theme, deploy workflow). Public API
    prose already lives as `///` comments.
