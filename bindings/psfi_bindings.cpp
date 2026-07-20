@@ -862,4 +862,126 @@ PYBIND11_MODULE(psfi, m)
           "entries against that part's sources can be nonzero — every excluded\n"
           "entry is exactly zero, by the support oracles. Symmetric mode includes\n"
           "the adjoint piece; Support.none gives every part all targets.");
+
+    // ------------------------------------------------------------------
+    //  Block low rank (the BRLR format)
+    // ------------------------------------------------------------------
+
+    py::class_<BlockLowRank> block_low_rank_class(m, "BlockLowRank",
+        "The source-partitioned compressed kernel matrix. The operator/transpose\n"
+        "dictionary: the impulse field samples columns of the kernel of whatever\n"
+        "operator OP was probed, so apply ~ OP (nodal kernel sense; mass matrices\n"
+        "stay downstream, A = M Phi M) and applyT ~ OP^T. Probed A forward =>\n"
+        "apply ~ A; probed A^T => apply ~ A^T and A itself is applyT; symmetric\n"
+        "mode => approximately symmetric, form (apply + applyT)/2 if wanted.\n"
+        "Pure linear algebra: global ids + factors + axis sizes, no geometry.");
+
+    py::class_<BlockLowRank::Block>(block_low_rank_class, "Block",
+        "One block: the kernel restricted to (target_ids, source_ids). factored:\n"
+        "block ~ target_factor (|T|, r) @ source_factor.T; dense: target_factor is\n"
+        "the (|T|, |S|) block verbatim and source_factor is empty.")
+        .def(py::init([]( std::vector<int> source_ids, std::vector<int> target_ids,
+                          bool factored, const Eigen::MatrixXd& target_factor,
+                          const Eigen::MatrixXd& source_factor )
+             {
+                 BlockLowRank::Block blk;
+                 blk.source_ids = std::move(source_ids);
+                 blk.target_ids = std::move(target_ids);
+                 blk.factored = factored;
+                 blk.target_factor = target_factor;
+                 blk.source_factor = source_factor;
+                 return blk;
+             }),
+             "source_ids"_a, "target_ids"_a, "factored"_a, "target_factor"_a,
+             "source_factor"_a = Eigen::MatrixXd(0, 0))
+        .def_readonly("source_ids", &BlockLowRank::Block::source_ids)
+        .def_readonly("target_ids", &BlockLowRank::Block::target_ids)
+        .def_readonly("factored", &BlockLowRank::Block::factored)
+        .def_readonly("target_factor", &BlockLowRank::Block::target_factor)
+        .def_readonly("source_factor", &BlockLowRank::Block::source_factor)
+        .def_property_readonly("rank", &BlockLowRank::Block::rank)
+        .def_property_readonly("storage_entries", &BlockLowRank::Block::storage_entries)
+        .def("__repr__", []( const BlockLowRank::Block& blk )
+             {
+                 return "Block(num_sources=" + std::to_string(blk.source_ids.size())
+                     + ", num_targets=" + std::to_string(blk.target_ids.size())
+                     + ", " + ( blk.factored ? "factored, rank=" + std::to_string(blk.rank())
+                                             : std::string("dense") ) + ")";
+             });
+
+    block_low_rank_class
+        .def(py::init([]( int num_sources, int num_targets,
+                          std::vector<BlockLowRank::Block> blocks )
+             { return BlockLowRank(num_sources, num_targets, std::move(blocks)); }),
+             "num_sources"_a, "num_targets"_a, "blocks"_a,
+             "Validates ids and factor shapes; blocks must partition the source axis.")
+        .def_property_readonly("num_sources", &BlockLowRank::num_sources)
+        .def_property_readonly("num_targets", &BlockLowRank::num_targets)
+        .def_property_readonly("num_blocks", &BlockLowRank::num_blocks)
+        .def_property_readonly("blocks", &BlockLowRank::blocks)
+        .def_property_readonly("storage_entries", &BlockLowRank::storage_entries)
+        .def("apply",
+             []( const BlockLowRank& B, const Eigen::Ref<const Eigen::MatrixXd>& U )
+             { return B.apply(U); },
+             "U"_a, py::call_guard<py::gil_scoped_release>(),
+             "Integrate against the source axis: U (num_sources, k) -> (num_targets, k).\n"
+             "Approximates the probed operator OP (see the class dictionary). For a\n"
+             "single vector pass U[:, None].")
+        .def("applyT",
+             []( const BlockLowRank& B, const Eigen::Ref<const Eigen::MatrixXd>& V )
+             { return B.applyT(V); },
+             "V"_a, py::call_guard<py::gil_scoped_release>(),
+             "The transpose action: V (num_targets, k) -> (num_sources, k) ~ OP^T.")
+        .def("to_dense", &BlockLowRank::to_dense,
+             py::call_guard<py::gil_scoped_release>(),
+             "The dense (num_targets, num_sources) matrix — for tests and small problems.")
+        .def("__repr__", []( const BlockLowRank& B )
+             {
+                 return "BlockLowRank(num_targets=" + std::to_string(B.num_targets())
+                     + ", num_sources=" + std::to_string(B.num_sources())
+                     + ", num_blocks=" + std::to_string(B.num_blocks())
+                     + ", storage_entries=" + std::to_string(B.storage_entries()) + ")";
+             });
+
+    py::class_<BlockBuildInfo>(m, "BlockBuildInfo",
+        "Per-block construction diagnostics (indices parallel the partition).")
+        .def_readonly("used_aca", &BlockBuildInfo::used_aca)
+        .def_readonly("converged", &BlockBuildInfo::converged)
+        .def_readonly("hit_max_rank", &BlockBuildInfo::hit_max_rank)
+        .def_readonly("relerr_estimate", &BlockBuildInfo::relerr_estimate);
+
+    py::class_<BlockLowRankBuildResult>(m, "BlockLowRankBuildResult",
+        "block_low_rank() result: the matrix plus diagnostics. Check\n"
+        "any_hit_max_rank — a binding rank cap is never silent.")
+        .def_readonly("matrix", &BlockLowRankBuildResult::matrix)
+        .def_readonly("block_info", &BlockLowRankBuildResult::block_info)
+        .def_readonly("all_converged", &BlockLowRankBuildResult::all_converged)
+        .def_readonly("any_hit_max_rank", &BlockLowRankBuildResult::any_hit_max_rank)
+        .def("__repr__", []( const BlockLowRankBuildResult& r )
+             {
+                 return "BlockLowRankBuildResult(num_blocks="
+                     + std::to_string(r.matrix.num_blocks())
+                     + ", all_converged=" + ( r.all_converged ? "True" : "False" )
+                     + ", any_hit_max_rank=" + ( r.any_hit_max_rank ? "True" : "False" ) + ")";
+             });
+
+    m.def("block_low_rank",
+          []( const KernelEvaluator& kernel, const RowsXd& yy, const RowsXd& xx,
+              const std::vector<std::vector<int>>& source_partition, double rtol,
+              const KernelLowRankOptions& options )
+          {
+              return block_low_rank(kernel, cols_from_rows(yy).eval(),
+                                    cols_from_rows(xx).eval(), source_partition, rtol, options);
+          },
+          "kernel"_a, "yy"_a, "xx"_a, "source_partition"_a, "rtol"_a,
+          "options"_a = KernelLowRankOptions{},
+          py::call_guard<py::gil_scoped_release>(),
+          "Builds the BRLR approximation of the kernel matrix: target sets from the\n"
+          "support oracles (lossless block sparsity), per-block compression\n"
+          "(dense-SVD or ACA per options), then the smaller of factored and\n"
+          "verbatim-dense storage per block (dense-path dense storage keeps the\n"
+          "EXACT block). rtol is the per-block relative Frobenius tolerance, which\n"
+          "is also the whole-matrix bound. yy: (num_targets, dim_target),\n"
+          "xx: (num_sources, dim_source). Deterministic (per-block seeds\n"
+          "options.seed + block index).");
 }

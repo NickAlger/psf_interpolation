@@ -132,8 +132,8 @@ Nick's verdict on gaussian_psf).
   builder [DONE — incl. a test proving the adjoint piece is load-bearing:
   cols-only sets miss genuinely nonzero symmetric-mode entries],
   (4) BlockLowRank container + builder + tests (BRLR-vs-dense, adjoint,
-  1D->2D, support exactness), (5) BRLR -> GLR via randomized_svd, (6) docs
-  example + MPI design notes, (7) column-major eval perf slice (amortize
+  1D->2D, support exactness) [DONE], (5) BRLR -> GLR via randomized_svd,
+  (6) docs example + MPI design notes, (7) column-major eval perf slice (amortize
   locate/fields/kNN/RBF-factorization per source point; the RBF weight
   vector depends only on centers, so per-y cost drops to gate + mesh locate
   + dot; excluded-neighbor edge cases fall back to per-y solves).
@@ -153,9 +153,14 @@ Nick's verdict on gaussian_psf).
   passes), rbf.hpp, kernel_evaluator.hpp (+ target_support/source_support
   oracles; the shared implementation is
   ImpulseResponseField::support_ellipsoids, which returns UNIT-scale
-  ellipsoids with tau folded into Sigma); umbrella psfi.hpp with version
-  macros (0.1.0).
-- Tests: 55 doctest cases / 938 assertions; 98 pytest tests including a
+  ellipsoids with tau folded into Sigma), block_low_rank.hpp (slice 4: the
+  BRLR format — BlockLowRank container with per-block auto factored/dense
+  storage at the break-even r(|S|+|T|) < |S||T|, apply/applyT/to_dense, the
+  operator/transpose dictionary in its file header; builder with per-block
+  diagnostics, parallel over blocks, per-block seeds seed+index; dense-path
+  dense storage keeps the EXACT block, so rtol=0 reproduces block() bit for
+  bit); umbrella psfi.hpp with version macros (0.1.0).
+- Tests: 62 doctest cases / 988 assertions; 101 pytest tests including a
   pure-numpy reference of the full prediction pipeline over all 48
   frame×scaling×support×normalization combos, scipy RBFInterpolator
   cross-checks, an evaluator reference (prediction reference + merge +
